@@ -1,0 +1,103 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { getCourse } from '../redux/slices/courseSlice';
+
+const CourseDetailPage = () => {
+  const { id } = useParams();
+  const dispatch = useDispatch();
+  
+  const { course, loading } = useSelector(state => state.courses);
+  const { isAuthenticated } = useSelector(state => state.auth);
+
+  useEffect(() => {
+    if (id) {
+      dispatch(getCourse(id));
+    }
+  }, [dispatch, id]);
+
+  const [activeSection, setActiveSection] = useState(0);
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  if (!course) return <div className="min-h-screen flex items-center justify-center">Course not found</div>;
+
+  return (
+    <div className="min-h-screen bg-gray-100 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          {/* Course Header */}
+          <div className="p-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">{course.title}</h1>
+            <p className="text-gray-600 mb-4">{course.description}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-900">₹{course.price}</p>
+                <p className="text-sm text-gray-500">By {course.instructor?.name || 'Unknown Instructor'}</p>
+              </div>
+              <div className="space-x-4">
+                <Link
+                  to={isAuthenticated ? "/cart" : "/login"}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Add to Cart
+                </Link>
+                <Link
+                  to={isAuthenticated ? "/checkout" : "/login"}
+                  className="bg-orange-600 text-white px-6 py-2 rounded-md hover:bg-orange-700 transition-colors"
+                >
+                  Buy Now
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Course Content */}
+          <div className="border-t border-gray-200 p-6">
+            <h3 className="text-xl font-semibold mb-4">What you'll learn</h3>
+            <ul className="list-disc pl-5 space-y-2 mb-8">
+              {course.learningObjectives?.map((objective, index) => (
+                <li key={index} className="text-gray-600">{objective}</li>
+              ))}
+            </ul>
+
+            <h3 className="text-xl font-semibold mb-4">Course Curriculum</h3>
+            <div className="space-y-4">
+              {course.modules?.map((module, moduleIndex) => (
+                <div key={moduleIndex} className="border rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setActiveSection(activeSection === moduleIndex ? -1 : moduleIndex)}
+                    className="w-full p-4 text-left font-medium bg-gray-50 hover:bg-gray-100 focus:outline-none flex justify-between items-center"
+                  >
+                    <span>{module.title}</span>
+                    <svg
+                      className={`w-5 h-5 transform transition-transform ${activeSection === moduleIndex ? 'rotate-180' : ''}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {activeSection === moduleIndex && (
+                    <div className="p-4 bg-white">
+                      <ul className="space-y-2">
+                        {module.contents?.map((content, contentIndex) => (
+                          <li key={contentIndex} className="flex items-center text-gray-600">
+                            <span className="mr-2">📝</span>
+                            {content.title}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default CourseDetailPage;

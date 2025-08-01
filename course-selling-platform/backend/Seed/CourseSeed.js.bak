@@ -1,0 +1,436 @@
+require('dotenv').config();
+const mongoose = require('mongoose');
+const Course = require('../models/Course');
+const Category = require('../models/Category');
+const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/edustream', {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log('MongoDB Connected successfully');
+  } catch (error) {
+    console.error('MongoDB connection error:', error.message);
+    process.exit(1);
+  }
+};
+
+const coursesData = [
+  {
+    title: 'Complete Web Development Bootcamp',
+    description: 'Learn HTML, CSS, JavaScript, React, Node.js and more to become a full-stack web developer',
+    shortDescription: 'Learn full-stack web development',
+    price: 99.99,
+    rating: 4.8,
+    ratingCount: 1250,
+    enrolled: 5280,
+    image: 'https://images.unsplash.com/photo-1593720213428-28a5b9e94613?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
+    topics: ['HTML', 'CSS', 'JavaScript', 'React', 'Node.js', 'Web Development'],
+    published: true
+  },
+  {
+    title: 'React Masterclass 2023',
+    description: 'Become an expert in React.js and build complex, scalable front-end applications',
+    shortDescription: 'Master React.js development',
+    price: 79.99,
+    rating: 4.9,
+    ratingCount: 823,
+    enrolled: 3150,
+    image: 'https://images.unsplash.com/photo-1633356122102-3fe601e05bd2?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
+    topics: ['React', 'JavaScript', 'Redux', 'Web Development'],
+    published: true
+  },
+  {
+    title: 'Python for Data Science',
+    description: 'Learn Python, NumPy, Pandas, Matplotlib, Seaborn and more for data analysis',
+    shortDescription: 'Master data analysis with Python',
+    price: 89.99,
+    rating: 4.7,
+    ratingCount: 950,
+    enrolled: 4200,
+    image: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1169&q=80',
+    topics: ['Python', 'Data Science', 'Machine Learning'],
+    published: true
+  },
+  {
+    title: 'UI/UX Design Fundamentals',
+    description: 'Master user interface and user experience design principles and tools',
+    shortDescription: 'Learn UI/UX design from scratch',
+    price: 69.99,
+    rating: 4.6,
+    ratingCount: 720,
+    enrolled: 2890,
+    image: 'https://images.unsplash.com/photo-1587440871875-191322ee64b0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1171&q=80',
+    topics: ['UI Design', 'UX Design', 'Figma', 'Adobe XD'],
+    published: true
+  },
+  {
+    title: 'Mobile App Development with Flutter',
+    description: 'Build cross-platform mobile apps with Flutter and Dart',
+    shortDescription: 'Create mobile apps with Flutter',
+    price: 84.99,
+    rating: 4.5,
+    ratingCount: 610,
+    enrolled: 2100,
+    image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80',
+    topics: ['Flutter', 'Dart', 'Mobile Development'],
+    published: true
+  },
+  {
+    title: 'Full-Stack JavaScript Development',
+    description: 'Master JavaScript for both frontend and backend development',
+    shortDescription: 'Become a full-stack JS developer',
+    price: 94.99,
+    rating: 4.8,
+    ratingCount: 805,
+    enrolled: 3720,
+    image: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80',
+    topics: ['JavaScript', 'Node.js', 'Express', 'MongoDB'],
+    published: true
+  },
+  {
+    title: 'Machine Learning A-Z',
+    description: 'Learn and implement machine learning algorithms from scratch',
+    shortDescription: 'Master machine learning',
+    price: 99.99,
+    rating: 4.9,
+    ratingCount: 1320,
+    enrolled: 5680,
+    image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
+    topics: ['Machine Learning', 'Python', 'Data Science', 'AI'],
+    published: true
+  },
+  {
+    title: 'Digital Marketing Masterclass',
+    description: 'Learn SEO, social media marketing, email marketing, and more',
+    shortDescription: 'Master digital marketing',
+    price: 74.99,
+    rating: 4.6,
+    ratingCount: 580,
+    enrolled: 2450,
+    image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1115&q=80',
+    topics: ['Digital Marketing', 'SEO', 'Social Media', 'Email Marketing'],
+    published: true
+  }
+];
+
+const categoriesData = [
+  {
+    name: 'Web Development',
+    icon: 'https://img.icons8.com/color/96/000000/html-5--v1.png'
+  },
+  {
+    name: 'Mobile Development',
+    icon: 'https://img.icons8.com/color/96/000000/android-os.png'
+  },
+  {
+    name: 'Data Science',
+    icon: 'https://img.icons8.com/color/96/000000/combo-chart--v1.png'
+  },
+  {
+    name: 'Design',
+    icon: 'https://img.icons8.com/color/96/000000/figma--v1.png'
+  },
+  {
+    name: 'Business',
+    icon: 'https://img.icons8.com/color/96/000000/briefcase.png'
+  },
+  {
+    name: 'Marketing',
+    icon: 'https://img.icons8.com/color/96/000000/commercial.png'
+  }
+];
+
+const seedDatabase = async () => {
+  try {
+    // Connect to database
+    await connectDB();
+    
+    // Clear existing data
+    await Course.deleteMany({});
+    await Category.deleteMany({});
+
+    // Create categories
+    const categoryPromises = categoriesData.map(categoryData =>
+      Category.findOneAndUpdate(
+        { name: categoryData.name },
+        categoryData,
+        { upsert: true, new: true }
+      )
+    );
+    
+    const categories = await Promise.all(categoryPromises);
+    const categoriesMap = categories.reduce((acc, category) => {
+      acc[category.name] = category;
+      return acc;
+    }, {});
+    
+    // Create a test instructor if doesn't exist
+    let instructor = await User.findOne({ role: 'instructor' });
+    if (!instructor) {
+      instructor = await User.create({
+        name: 'Test Instructor',
+        email: 'instructor@test.com',
+        password: 'password123',
+        role: 'instructor'
+      });
+    }
+
+    // Add categories and instructor to courses
+    const coursesWithRefs = coursesData.map(course => {
+      // Determine category based on course topics
+      let categoryName = 'Business'; // Default category
+      
+      if (course.topics.some(topic => ['HTML', 'CSS', 'JavaScript', 'React', 'Node.js', 'Web Development'].includes(topic))) {
+        categoryName = 'Web Development';
+      } else if (course.topics.some(topic => ['Flutter', 'Dart', 'Mobile Development', 'iOS', 'Android'].includes(topic))) {
+        categoryName = 'Mobile Development';
+      } else if (course.topics.some(topic => ['Data Science', 'Machine Learning', 'Python', 'AI', 'Statistics'].includes(topic))) {
+        categoryName = 'Data Science';
+      } else if (course.topics.some(topic => ['UI Design', 'UX Design', 'Figma', 'Design', 'Adobe XD'].includes(topic))) {
+        categoryName = 'Design';
+      } else if (course.topics.some(topic => ['Digital Marketing', 'Marketing', 'SEO', 'Social Media'].includes(topic))) {
+        categoryName = 'Marketing';
+      }
+
+      const categoryDoc = categoriesMap[categoryName];
+      if (!categoryDoc) {
+        throw new Error(`Category ${categoryName} not found in categoriesMap`);
+      }
+
+      return {
+        ...course,
+        category: categoryDoc._id,
+        instructor: instructor._id
+      };
+    });
+
+    // Create courses
+    await Course.create(coursesWithRefs);
+
+    console.log('Database seeded successfully');
+    process.exit(0);
+  } catch (error) {
+    console.error('Error seeding database:', error);
+    process.exit(1);
+  }
+};
+
+seedDatabase();
+    description: 'Learn HTML, CSS, JavaScript, React, Node.js and more to become a full-stack web developer',
+    shortDescription: 'Learn full-stack web development',
+    price: 99.99,
+    rating: 4.8,
+    ratingCount: 1250,
+    enrolled: 5280,
+    image: 'https://images.unsplash.com/photo-1593720213428-28a5b9e94613?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
+    topics: ['HTML', 'CSS', 'JavaScript', 'React', 'Node.js', 'Web Development'],
+    published: true
+  },
+  {
+    title: 'React Masterclass 2023',
+    description: 'Become an expert in React.js and build complex, scalable front-end applications',
+    shortDescription: 'Master React.js development',
+    price: 79.99,
+    rating: 4.9,
+    ratingCount: 823,
+    enrolled: 3150,
+    image: 'https://images.unsplash.com/photo-1633356122102-3fe601e05bd2?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
+    topics: ['React', 'JavaScript', 'Redux', 'Web Development'],
+    published: true
+  },
+  {
+    title: 'Python for Data Science',
+    description: 'Learn Python, NumPy, Pandas, Matplotlib, Seaborn and more for data analysis',
+    shortDescription: 'Master data analysis with Python',
+    price: 89.99,
+    rating: 4.7,
+    ratingCount: 950,
+    enrolled: 4200,
+    image: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1169&q=80',
+    topics: ['Python', 'Data Science', 'Machine Learning'],
+    published: true
+  },
+  {
+    title: 'UI/UX Design Fundamentals',
+    description: 'Master user interface and user experience design principles and tools',
+    shortDescription: 'Learn UI/UX design from scratch',
+    price: 69.99,
+    rating: 4.6,
+    ratingCount: 720,
+    enrolled: 2890,
+    image: 'https://images.unsplash.com/photo-1587440871875-191322ee64b0?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1171&q=80',
+    topics: ['UI Design', 'UX Design', 'Figma', 'Adobe XD'],
+    published: true
+  },
+  {
+    title: 'Mobile App Development with Flutter',
+    description: 'Build cross-platform mobile apps with Flutter and Dart',
+    shortDescription: 'Create mobile apps with Flutter',
+    price: 84.99,
+    rating: 4.5,
+    ratingCount: 610,
+    enrolled: 2100,
+    image: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80',
+    topics: ['Flutter', 'Dart', 'Mobile Development'],
+    published: true
+  },
+  {
+    title: 'Full-Stack JavaScript Development',
+    description: 'Master JavaScript for both frontend and backend development',
+    shortDescription: 'Become a full-stack JS developer',
+    price: 94.99,
+    rating: 4.8,
+    ratingCount: 805,
+    enrolled: 3720,
+    image: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1074&q=80',
+    topics: ['JavaScript', 'Node.js', 'Express', 'MongoDB'],
+    published: true
+  },
+  {
+    title: 'Machine Learning A-Z',
+    description: 'Learn and implement machine learning algorithms from scratch',
+    shortDescription: 'Master machine learning',
+    price: 99.99,
+    rating: 4.9,
+    ratingCount: 1320,
+    enrolled: 5680,
+    image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1170&q=80',
+    topics: ['Machine Learning', 'Python', 'Data Science', 'AI'],
+    published: true
+  },
+  {
+    title: 'Digital Marketing Masterclass',
+    description: 'Learn SEO, social media marketing, email marketing, and more',
+    shortDescription: 'Master digital marketing',
+    price: 74.99,
+    rating: 4.6,
+    ratingCount: 580,
+    enrolled: 2450,
+    image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1115&q=80',
+    topics: ['Digital Marketing', 'SEO', 'Social Media', 'Email Marketing'],
+    published: true
+  }
+];
+
+const categoriesData = [
+  {
+    name: 'Web Development',
+    icon: 'https://img.icons8.com/color/96/000000/html-5--v1.png'
+  },
+  {
+    name: 'Mobile Development',
+    icon: 'https://img.icons8.com/color/96/000000/android-os.png'
+  },
+  {
+    name: 'Data Science',
+    icon: 'https://img.icons8.com/color/96/000000/combo-chart--v1.png'
+  },
+  {
+    name: 'Design',
+    icon: 'https://img.icons8.com/color/96/000000/figma--v1.png'
+  },
+  {
+    name: 'Business',
+    icon: 'https://img.icons8.com/color/96/000000/briefcase.png'
+  },
+  {
+    name: 'Marketing',
+    icon: 'https://img.icons8.com/color/96/000000/commercial.png'
+  }
+];
+
+const seedDatabase = async () => {
+  try {
+    // Connect to database
+    await connectDB();
+    
+    // Clear existing data
+    await Course.deleteMany({});
+    await Category.deleteMany({});
+
+    // Create categories
+    const categoriesMap = {};
+    for (const categoryData of categoriesData) {
+      const category = await Category.findOneAndUpdate(
+        { name: categoryData.name },
+        { ...categoryData },
+        { upsert: true, new: true }
+      );
+      categoriesMap[categoryData.name] = category;
+    }
+    
+    // Create a test instructor if doesn't exist
+    let instructor = await User.findOne({ role: 'instructor' });
+    if (!instructor) {
+      instructor = await User.create({
+        name: 'Test Instructor',
+        email: 'instructor@test.com',
+        password: 'password123',
+        role: 'instructor'
+      });
+    }
+        { name: 'Web Development' },
+        { name: 'Web Development', icon: 'web' },
+        { upsert: true, new: true }
+      ),
+      'Mobile Development': await Category.findOneAndUpdate(
+        { name: 'Mobile Development' },
+        { name: 'Mobile Development', icon: 'mobile' },
+        { upsert: true, new: true }
+      ),
+      'Data Science': await Category.findOneAndUpdate(
+        { name: 'Data Science' },
+        { name: 'Data Science', icon: 'data' },
+        { upsert: true, new: true }
+      ),
+      'Design': await Category.findOneAndUpdate(
+        { name: 'Design' },
+        { name: 'Design', icon: 'design' },
+        { upsert: true, new: true }
+      )
+    };
+
+    const coursesWithRefs = coursesData.map(course => {
+      // Determine category based on course topics
+      let categoryName = 'Business'; // Default category
+      
+      if (course.topics.some(topic => ['HTML', 'CSS', 'JavaScript', 'React', 'Node.js', 'Web Development'].includes(topic))) {
+        categoryName = 'Web Development';
+      } else if (course.topics.some(topic => ['Flutter', 'Dart', 'Mobile Development', 'iOS', 'Android'].includes(topic))) {
+        categoryName = 'Mobile Development';
+      } else if (course.topics.some(topic => ['Data Science', 'Machine Learning', 'Python', 'AI', 'Statistics'].includes(topic))) {
+        categoryName = 'Data Science';
+      } else if (course.topics.some(topic => ['UI Design', 'UX Design', 'Figma', 'Design', 'Adobe XD'].includes(topic))) {
+        categoryName = 'Design';
+      } else if (course.topics.some(topic => ['Digital Marketing', 'Marketing', 'SEO', 'Social Media'].includes(topic))) {
+        categoryName = 'Marketing';
+      }
+
+      const categoryDoc = categoriesMap[categoryName];
+      if (!categoryDoc) {
+        throw new Error(`Category ${categoryName} not found in categoriesMap`);
+      }
+
+      return {
+        ...course,
+        category: categoryDoc._id,
+        instructor: instructor._id
+      };
+    });
+
+    // Create courses
+    await Course.create(coursesWithRefs);
+
+    console.log('Database seeded successfully');
+    process.exit(0);
+  } catch (error) {
+    console.error('Error seeding database:', error);
+    process.exit(1);
+  }
+};
+
+seedDatabase();
