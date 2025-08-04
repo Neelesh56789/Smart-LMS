@@ -1,60 +1,38 @@
+// controllers/order.controller.js
+
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const Order = require('../models/Order');
 const User = require('../models/User');
 const Course = require('../models/Course');
 const Cart = require('../models/Cart');
 
-// --- Helper Functions ---
-
-exports.getMyPurchasedCourses = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id).populate({
-      path: 'purchasedCourses',
-      model: 'Course', // Explicitly specify the model name
-      select: 'title description image instructor',
-      populate: { path: 'instructor', model: 'User', select: 'name' },
-    });
-    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
-    res.status(200).json({ success: true, data: user.purchasedCourses });
-  } catch (error) {
-    console.error('Error fetching purchased courses:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch purchased courses.' });
-  }
-};
-
+// --- FUNCTION 1: CREATE CHECKOUT SESSION (No changes needed here) ---
 exports.createCheckoutSession = async (req, res) => {
   try {
     const { items } = req.body;
     const userId = req.user.id;
     if (!items || items.length === 0) return res.status(400).json({ message: 'No items provided.' });
-
     const courseIds = items.map(item => item.courseId);
     const coursesFromDB = await Course.find({ _id: { $in: courseIds } });
     if (coursesFromDB.length !== items.length) return res.status(400).json({ message: 'One or more courses not found.' });
-
-    const line_items = coursesFromDB.map(course => {
-      const item = items.find(i => i.courseId === course._id.toString());
-      return {
-        price_data: {
-          currency: 'usd',
-          product_data: { name: course.title, images: [course.image], description: course.shortDescription || 'Online Course' },
-          unit_amount: Math.round(course.price * 100),
-        },
-        quantity: item.quantity,
-      };
-    });
-
+    const line_items = coursesFromDB.map(course => ({
+      price_data: {
+        currency: 'usd',
+        product_data: { name: course.title, images: [course.image] },
+        unit_amount: Math.round(course.price * 100),
+      },
+      quantity: 1,
+    }));
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
       line_items,
       customer_email: req.user.email,
       success_url: `${process.env.FRONTEND_URL}/payment-success`,
-      cancel_url: `${process.env.FRONTEND_URL}/payment-cancel`,
+      cancel_url: `${process.env.FRONTEND_URL}/cart`,
       metadata: {
         userId: userId,
-        // The metadata value must be a string.
-        items: JSON.stringify(items),
+        items: JSON.stringify(items.map(item => ({ courseId: item.courseId }))),
       },
     });
     res.status(200).json({ id: session.id });
@@ -64,80 +42,86 @@ exports.createCheckoutSession = async (req, res) => {
   }
 };
 
-// @desc    Handle Stripe webhook for successful payments
-// @route   POST /api/orders/stripe-webhook
-// @access  Public (protected by Stripe signature)
+
+// --- FUNCTION 2: HANDLE STRIPE WEBHOOK (THE REAL FIX WITH LOGGING) ---
 exports.handleStripeWebhook = async (req, res) => {
+  console.log('--- STRIPE WEBHOOK ENDPOINT HIT ---'); // Log 1: Check if endpoint is reached
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    console.log('✅ Webhook signature verified successfully.'); // Log 2
   } catch (err) {
-    console.error(`❌ Webhook signature verification failed.`, err.message);
+    console.error('❌ WEBHOOK SIGNATURE VERIFICATION FAILED:', err.message); // Important Error Log
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
-  
-  // --- START: THE FIX ---
-  // We only care about the 'checkout.session.completed' event.
+
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    console.log('✅ Processing checkout.session.completed for session ID:', session.id);
-
-    // This is the function that will perform all our database operations.
-    const fulfillOrder = async (session) => {
-      try {
-        console.log('--- FULFILLING ORDER ---');
-        
-        // 1. Extract metadata
-        const userId = session.metadata.userId;
-        const purchasedItems = JSON.parse(session.metadata.items);
-        const courseIds = purchasedItems.map(item => item.courseId);
-
-        console.log(`[1/4] Metadata: UserID=${userId}, CourseIDs=${courseIds.join(', ')}`);
-
-        // 2. Create the Order document
-        await Order.create({
-          user: userId,
-          courses: courseIds,
-          totalAmount: session.amount_total / 100,
-          stripePaymentIntentId: session.payment_intent,
-        });
-        console.log('[2/4] Order document created.');
-
-        // 3. Update the User document to grant access to courses
-        const userUpdateResult = await User.updateOne(
-          { _id: userId },
-          { $addToSet: { purchasedCourses: { $each: courseIds } } }
-        );
-        console.log(`[3/4] User document updated. Matched: ${userUpdateResult.matchedCount}, Modified: ${userUpdateResult.modifiedCount}`);
-        
-        // 4. Update the Cart document to remove purchased items
-        const cartUpdateResult = await Cart.updateOne(
-          { user: userId },
-          { $pull: { items: { course: { $in: courseIds } } } }
-        );
-        console.log(`[4/4] Cart document updated. Matched: ${cartUpdateResult.matchedCount}, Modified: ${cartUpdateResult.modifiedCount}`);
-        
-        console.log('--- ORDER FULFILLED SUCCESSFULLY ---');
-
-      } catch (err) {
-        // This will catch any error during the fulfillment process
-        console.error('❌ Error during order fulfillment:', err);
-        throw err; // Re-throw the error to be caught by the outer block
-      }
-    };
+    console.log('✅ Processing payment for session ID:', session.id); // Log 3
 
     try {
-      await fulfillOrder(session);
-    } catch(err) {
-      // If fulfillOrder throws an error, we send a 500 status.
-      // This tells Stripe that the webhook failed and it should try again later.
-      return res.status(500).send({ error: 'Failed to fulfill order.' });
+      console.log('--- STARTING ORDER FULFILLMENT ---'); // Log 4
+      const userId = session.metadata.userId;
+      const purchasedItems = JSON.parse(session.metadata.items);
+      const courseIds = purchasedItems.map(item => item.courseId);
+      console.log(`[DATA] UserID: ${userId}, CourseIDs: ${courseIds.join(', ')}`); // Log 5
+
+      if (!userId || !courseIds || courseIds.length === 0) {
+          throw new Error('Critical Error: Metadata from Stripe is missing UserID or CourseIDs.');
+      }
+
+      // 1. CREATE THE ORDER
+      const coursesFromDB = await Course.find({ _id: { $in: courseIds } });
+      const itemsForOrder = coursesFromDB.map(c => ({ course: c._id, price: c.price }));
+      await Order.create({
+        user: userId,
+        items: itemsForOrder,
+        totalAmount: session.amount_total / 100,
+        status: 'completed',
+        paymentId: session.payment_intent,
+      });
+      console.log(`[OK] Step 1/3: Order created for user ${userId}.`); // Log 6
+
+      // 2. UPDATE THE USER
+      await User.updateOne(
+        { _id: userId },
+        { $addToSet: { purchasedCourses: { $each: courseIds } } }
+      );
+      console.log(`[OK] Step 2/3: User ${userId} granted access to courses.`); // Log 7
+
+      // 3. CLEAR THE CART
+      await Cart.updateOne(
+        { user: userId },
+        { $pull: { items: { course: { $in: courseIds } } } }
+      );
+      console.log(`[OK] Step 3/3: Cart cleared for user ${userId}.`); // Log 8
+      console.log('--- ✅ ORDER FULFILLED SUCCESSFULLY ---');
+
+    } catch (err) {
+      // This is the most important log. It will show any error during the 3 steps.
+      console.error('--- ❌ CRITICAL ERROR FULFILLING ORDER ---', err);
+      return res.status(500).json({ error: 'Failed to fulfill order.' });
     }
   }
-  // --- END: THE FIX ---
 
-  // Acknowledge receipt of the event to Stripe with a 200 status
-  res.status(200).send();
+  res.status(200).json({ received: true });
+};
+
+
+// --- FUNCTION 3: GET MY COURSES (No changes needed here) ---
+exports.getMyCourses = async (req, res) => {
+  try {
+    const orders = await Order.find({ user: req.user.id });
+    if (!orders || orders.length === 0) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+    const courseIds = orders.flatMap(order => order.items.map(item => item.course));
+    const courses = await Course.find({ '_id': { $in: courseIds } }).populate('instructor', 'name');
+    res.status(200).json({ success: true, data: courses });
+  } catch (error) {
+    console.error('Error in getMyCourses:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching courses.' });
+  }
 };

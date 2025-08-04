@@ -21,18 +21,14 @@ const { handleStripeWebhook } = require('./controllers/order.controller');
 const app = express();
 connectDB();
 
-// --- Middleware Setup ---
+
 
 // 1. CORS should be first
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin:'http://localhost:3000',
   credentials: true
 }));
 
-// --- START: THE FIX ---
-
-// 2. Stripe Webhook Route
-// This route MUST come BEFORE express.json(), so it can receive the raw request body.
 app.post(
   '/api/orders/stripe-webhook',
   express.raw({ type: 'application/json' }), // Stripe needs the raw body
