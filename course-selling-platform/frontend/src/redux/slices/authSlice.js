@@ -1,21 +1,20 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../api'; // Use the central api instance
+// src/slices/authSlice.js
 
-// Helper to safely get and parse items from localStorage
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../../api'; // Use your central, configured api instance
+
+// Helper to safely get and parse user from localStorage
 const getStorageItem = (key) => {
   try {
     const item = localStorage.getItem(key);
-    // Check for null or the string 'undefined' which can sometimes be stored
     if (item === null || item === 'undefined') return null;
     return JSON.parse(item);
   } catch (err) {
-    // If parsing fails, remove the invalid item
-    localStorage.removeItem(key);
+    localStorage.removeItem(key); // Clear invalid data
     return null;
   }
 };
 
-// Load the initial user state from localStorage
 const user = getStorageItem('user');
 
 const initialState = {
@@ -26,16 +25,13 @@ const initialState = {
 };
 
 // --- ASYNC THUNKS ---
-// Thunks are now responsible ONLY for the API call. State and localStorage
-// are handled by the reducers.
 
 export const register = createAsyncThunk('auth/register', async (userData, { rejectWithValue }) => {
   try {
     const response = await api.post('/auth/register', userData);
     return response.data.user;
   } catch (error) {
-    const message = error.response?.data?.message || error.message;
-    return rejectWithValue(message);
+    return rejectWithValue(error.response?.data?.message || error.message);
   }
 });
 
@@ -44,13 +40,11 @@ export const login = createAsyncThunk('auth/login', async (userData, { rejectWit
     const response = await api.post('/auth/login', userData);
     return response.data.user;
   } catch (error) {
-    const message = error.response?.data?.message || error.message;
-    return rejectWithValue(message);
+    return rejectWithValue(error.response?.data?.message || error.message);
   }
 });
 
 export const logout = createAsyncThunk('auth/logout', async () => {
-  // We can still make the API call to invalidate the session on the server
   await api.post('/auth/logout');
 });
 
@@ -61,8 +55,7 @@ export const sendPasswordResetEmail = createAsyncThunk(
       const res = await api.post('/auth/forgot-password', { email });
       return res.data;
     } catch (err) {
-      const message = err.response?.data?.message || err.message;
-      return rejectWithValue(message);
+      return rejectWithValue(err.response?.data?.message || err.message);
     }
   }
 );
@@ -74,21 +67,20 @@ export const resetPassword = createAsyncThunk(
       const res = await api.post(`/auth/reset-password/${token}`, { password });
       return res.data;
     } catch (err) {
-      const message = err.response?.data?.message || err.message;
-      return rejectWithValue(message);
+      return rejectWithValue(err.response?.data?.message || err.message);
     }
   }
 );
 
+// This is now the single source of truth for updating the user profile
 export const updateProfile = createAsyncThunk(
   'auth/updateProfile',
   async (profileData, { rejectWithValue }) => {
     try {
       const res = await api.put('/profile', profileData);
-      return res.data.data; // This is the updated user from the backend
+      return res.data.data;
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Failed to update profile';
-      return rejectWithValue(message);
+      return rejectWithValue(err.response?.data?.message || 'Failed to update profile');
     }
   }
 );
@@ -98,10 +90,9 @@ export const updateProfilePhoto = createAsyncThunk(
   async (formData, { rejectWithValue }) => {
     try {
       const res = await api.put('/profile/photo', formData);
-      return res.data.data; // This is the updated user from the backend
+      return res.data.data;
     } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Failed to upload photo';
-      return rejectWithValue(message);
+      return rejectWithValue(err.response?.data?.message || 'Failed to upload photo');
     }
   }
 );
@@ -115,95 +106,61 @@ export const authSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
+    // Fulfilled cases for actions that update the user object
     builder
-      // Register
-      .addCase(register.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
       .addCase(register.fulfilled, (state, action) => {
-        state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload;
         localStorage.setItem('user', JSON.stringify(action.payload));
-      })
-      .addCase(register.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-        state.user = null;
-        state.isAuthenticated = false;
-      })
-      // Login
-      .addCase(login.pending, (state) => {
-        state.loading = true;
-        state.error = null;
       })
       .addCase(login.fulfilled, (state, action) => {
-        state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload;
         localStorage.setItem('user', JSON.stringify(action.payload));
       })
-      .addCase(login.rejected, (state, action) => {
-        state.loading = false;
-        state.isAuthenticated = false;
-        state.user = null;
-        state.error = action.payload;
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        // Use the merge pattern to preserve the token
+        const updatedUser = { ...state.user, ...action.payload };
+        state.user = updatedUser;
+        localStorage.setItem('user', JSON.stringify(updatedUser));
       })
-      // Logout
+      .addCase(updateProfilePhoto.fulfilled, (state, action) => {
+        // FIX: This was the main bug. It now correctly merges to preserve the token.
+        const updatedUser = { ...state.user, ...action.payload };
+        state.user = updatedUser;
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
-        state.loading = false;
-        state.error = null;
         localStorage.removeItem('user');
       })
-      // Password Reset Email
-      .addCase(sendPasswordResetEmail.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(sendPasswordResetEmail.fulfilled, (state) => {
-        state.loading = false;
-      })
-      .addCase(sendPasswordResetEmail.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // Update Profile
-      .addCase(updateProfile.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(updateProfile.fulfilled, (state, action) => {
-    state.loading = false;
-    
-    // THE FIX: Merge the existing user (with token) and the new data
-    const updatedUser = { ...state.user, ...action.payload };
-
-    // Update the state with the merged object
-    state.user = updatedUser;
-    
-    // Save the correctly merged object to localStorage
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-})
-      .addCase(updateProfile.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
-      // Update Profile Photo
-      .addCase(updateProfilePhoto.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(updateProfilePhoto.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload;
-        localStorage.setItem('user', JSON.stringify(action.payload));
-      })
-      .addCase(updateProfilePhoto.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      });
+      // Generic matchers for pending and rejected states to reduce boilerplate
+      .addMatcher(
+        (action) => action.type.endsWith('/pending'),
+        (state) => {
+          state.loading = true;
+          state.error = null;
+        }
+      )
+      .addMatcher(
+        (action) => action.type.endsWith('/fulfilled'),
+        (state) => {
+          state.loading = false;
+        }
+      )
+      .addMatcher(
+        (action) => action.type.endsWith('/rejected'),
+        (state, action) => {
+          state.loading = false;
+          state.error = action.payload;
+          // If login or register fails, ensure user is logged out
+          if (action.type.startsWith('auth/login') || action.type.startsWith('auth/register')) {
+              state.isAuthenticated = false;
+              state.user = null;
+          }
+        }
+      );
   },
 });
 

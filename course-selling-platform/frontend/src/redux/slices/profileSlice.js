@@ -1,44 +1,43 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../api'; // <-- Import the central api instance
+// src/slices/profileSlice.js
 
-export const updateProfile = createAsyncThunk(
-  'profile/updateProfile',
-  async (profileData, { rejectWithValue }) => {
-    try {
-      // Use the pre-configured 'api' instance which handles authentication
-      const res = await api.put('/profile', profileData);
-      
-      // Return the updated user data on success
-      return res.data.data; 
-    } catch (err) {
-      const message = err.response?.data?.message || err.message || 'Failed to update profile';
-      return rejectWithValue(message);
-    }
-  }
-);
+import { createSlice } from '@reduxjs/toolkit';
+// FIX: Import the single, authoritative `updateProfile` thunk from authSlice.
+import { updateProfile } from './authSlice';
 
 const profileSlice = createSlice({
   name: 'profile',
   initialState: {
     loading: false,
-    error: null
+    error: null,
+    isSuccess: false,
   },
-  reducers: {},
+  reducers: {
+    // Action to reset the success/error state when the user navigates away
+    resetProfileStatus: (state) => {
+      state.isSuccess = false;
+      state.error = null;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(updateProfile.pending, (state) => {
         state.loading = true;
+        state.isSuccess = false;
         state.error = null;
       })
       .addCase(updateProfile.fulfilled, (state) => {
         state.loading = false;
-        // We will handle the user update in authSlice
+        state.isSuccess = true;
+        // The actual user object update is now handled correctly and solely by authSlice.
       })
       .addCase(updateProfile.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
-  }
+  },
 });
+
+// This slice no longer defines its own thunk.
+export const { resetProfileStatus } = profileSlice.actions;
 
 export default profileSlice.reducer;
