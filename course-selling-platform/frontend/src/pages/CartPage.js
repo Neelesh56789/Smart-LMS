@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCart, removeFromCart, clearCart } from '../redux/slices/cartSlice';
@@ -11,8 +11,8 @@ const CartPage = () => {
   const { cart, loading, error } = useSelector(state => state.cart);
   const { isAuthenticated } = useSelector(state => state.auth);
   
-  // Prevent infinite loops with useRef
-  const hasAttemptedFetch = useRef(false);
+  // Prevent infinite loops with useState
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const renderInstructorName = (instructor) => {
     return instructor?.name || 'Smart LMS';
@@ -21,7 +21,7 @@ const CartPage = () => {
   useEffect(() => {
     console.log('🛒 CartPage useEffect triggered', {
       isAuthenticated,
-      hasAttemptedFetch: hasAttemptedFetch.current,
+      hasInitialized,
       cart: !!cart,
       loading
     });
@@ -32,18 +32,18 @@ const CartPage = () => {
       return;
     }
 
-    // Only fetch if we haven't already attempted and we don't have cart data
-    if (isAuthenticated && !hasAttemptedFetch.current) {
+    // Only fetch if we haven't initialized and user is authenticated
+    if (isAuthenticated && !hasInitialized) {
       console.log('🛒 Dispatching getCart for first time');
-      hasAttemptedFetch.current = true;
+      setHasInitialized(true);
       dispatch(getCart());
     }
-  }, [isAuthenticated, navigate, dispatch]);
+  }, [isAuthenticated, navigate, dispatch, hasInitialized]);
 
-  // Reset the fetch flag when user logs out and back in
+  // Reset initialization when user logs out
   useEffect(() => {
     if (!isAuthenticated) {
-      hasAttemptedFetch.current = false;
+      setHasInitialized(false);
     }
   }, [isAuthenticated]);
 
@@ -76,9 +76,7 @@ const CartPage = () => {
 
   const handleRetry = () => {
     console.log('🛒 Manual retry triggered');
-    hasAttemptedFetch.current = false;
     dispatch(getCart());
-    hasAttemptedFetch.current = true;
   };
 
   // Debug info (remove in production)
