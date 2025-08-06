@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCart, removeFromCart, clearCart } from '../redux/slices/cartSlice';
@@ -10,27 +10,42 @@ const CartPage = () => {
   
   const { cart, loading, error } = useSelector(state => state.cart);
   const { isAuthenticated } = useSelector(state => state.auth);
+  
+  // Prevent infinite loops with useRef
+  const hasAttemptedFetch = useRef(false);
 
   const renderInstructorName = (instructor) => {
     return instructor?.name || 'Smart LMS';
   };
 
-  // Use useCallback to prevent unnecessary re-renders
-  const fetchCart = useCallback(() => {
-    if (isAuthenticated) {
-      dispatch(getCart());
-    }
-  }, [dispatch, isAuthenticated]);
-
   useEffect(() => {
+    console.log('🛒 CartPage useEffect triggered', {
+      isAuthenticated,
+      hasAttemptedFetch: hasAttemptedFetch.current,
+      cart: !!cart,
+      loading
+    });
+
     if (!isAuthenticated) {
       toast.info("Please login to view your cart.");
       navigate('/login');
       return;
     }
-    
-    fetchCart();
-  }, [isAuthenticated, navigate, fetchCart]);
+
+    // Only fetch if we haven't already attempted and we don't have cart data
+    if (isAuthenticated && !hasAttemptedFetch.current) {
+      console.log('🛒 Dispatching getCart for first time');
+      hasAttemptedFetch.current = true;
+      dispatch(getCart());
+    }
+  }, [isAuthenticated, navigate, dispatch]);
+
+  // Reset the fetch flag when user logs out and back in
+  useEffect(() => {
+    if (!isAuthenticated) {
+      hasAttemptedFetch.current = false;
+    }
+  }, [isAuthenticated]);
 
   const handleRemoveItem = async (courseId) => {
     if (!courseId) return;
@@ -59,6 +74,21 @@ const CartPage = () => {
     navigate('/checkout');
   };
 
+  const handleRetry = () => {
+    console.log('🛒 Manual retry triggered');
+    hasAttemptedFetch.current = false;
+    dispatch(getCart());
+    hasAttemptedFetch.current = true;
+  };
+
+  // Debug info (remove in production)
+  console.log('🛒 CartPage render:', {
+    loading,
+    error,
+    cart: cart ? 'exists' : 'null',
+    cartItems: cart?.items?.length || 0
+  });
+
   // Safeguard: ensure cart and cart.items exist
   const cartItems = cart?.items || [];
   const total = cartItems.reduce((accumulator, item) => {
@@ -71,6 +101,12 @@ const CartPage = () => {
       <div className="flex flex-col justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
         <p className="text-gray-600">Loading your cart...</p>
+        <button 
+          onClick={handleRetry}
+          className="mt-4 text-blue-500 hover:text-blue-700 underline"
+        >
+          Taking too long? Click to retry
+        </button>
       </div>
     );
   }
@@ -81,7 +117,7 @@ const CartPage = () => {
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded" role="alert">
           <p><strong>Error:</strong> {error}</p>
           <button 
-            onClick={fetchCart}
+            onClick={handleRetry}
             className="mt-2 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
           >
             Try Again
@@ -127,8 +163,8 @@ const CartPage = () => {
                 )}
               </div>
               
-              {cartItems.map(item => (
-                <div key={item.course?._id || item._id || Math.random()} className="p-6 border-b last:border-b-0 flex">
+              {cartItems.map((item, index) => (
+                <div key={item.course?._id || item._id || index} className="p-6 border-b last:border-b-0 flex">
                   <img 
                     src={item.course?.image || item.course?.thumbnail || 'https://via.placeholder.com/150'} 
                     alt={item.course?.title || 'Course'} 

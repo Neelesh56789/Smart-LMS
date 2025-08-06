@@ -21,10 +21,12 @@ export const getCart = createAsyncThunk('cart/getCart', async (_, thunkAPI) => {
   try {
     console.log('🛒 Fetching cart...');
     const response = await api.get('/cart');
-    console.log('🛒 Cart response:', response.data);
+    console.log('🛒 Full response:', response);
+    console.log('🛒 Response data:', response.data);
     return response.data;
   } catch (error) {
-    console.error('🛒 Cart error:', error.response?.data || error.message);
+    console.error('🛒 Cart error:', error);
+    console.error('🛒 Error response:', error.response?.data);
     return handleApiError(error, thunkAPI);
   }
 });
@@ -56,6 +58,32 @@ export const clearCart = createAsyncThunk('cart/clearCart', async (_, thunkAPI) 
   }
 });
 
+// Helper function to extract cart data from different response structures
+const extractCartData = (payload) => {
+  console.log('🛒 Extracting cart data from payload:', payload);
+  
+  // Try different possible structures
+  if (payload.data && payload.data.cart) {
+    console.log('🛒 Found cart in payload.data.cart');
+    return payload.data.cart;
+  } else if (payload.data && payload.data.items) {
+    console.log('🛒 Found cart in payload.data (direct)');
+    return payload.data;
+  } else if (payload.cart) {
+    console.log('🛒 Found cart in payload.cart');
+    return payload.cart;
+  } else if (payload.items) {
+    console.log('🛒 Found cart in payload (direct)');
+    return payload;
+  } else if (payload.data) {
+    console.log('🛒 Found cart in payload.data');
+    return payload.data;
+  } else {
+    console.log('🛒 Using payload as cart data');
+    return payload;
+  }
+};
+
 export const cartSlice = createSlice({
   name: 'cart',
   initialState,
@@ -68,81 +96,55 @@ export const cartSlice = createSlice({
     builder
       // Get Cart
       .addCase(getCart.pending, (state) => {
-        console.log('🛒 Cart loading started');
+        console.log('🛒 getCart pending');
         state.loading = true;
         state.error = null;
       })
       .addCase(getCart.fulfilled, (state, action) => {
-        console.log('🛒 Cart loaded successfully:', action.payload);
+        console.log('🛒 getCart fulfilled with payload:', action.payload);
         state.loading = false;
-        // FIX: Handle different response structures
-        if (action.payload.data) {
-          state.cart = action.payload.data;
-        } else if (action.payload.cart) {
-          state.cart = action.payload.cart;
-        } else {
-          state.cart = action.payload;
-        }
+        state.cart = extractCartData(action.payload);
+        console.log('🛒 Cart set to:', state.cart);
       })
       .addCase(getCart.rejected, (state, action) => {
-        console.log('🛒 Cart loading failed:', action.payload);
+        console.log('🛒 getCart rejected:', action.payload);
         state.loading = false;
         state.error = action.payload;
-        // Set empty cart on error to prevent infinite loading
+        // Initialize empty cart to prevent infinite loading
         state.cart = { items: [] };
       })
       
       // Add to Cart
       .addCase(addToCart.pending, (state) => {
-        state.loading = true;
         state.error = null;
       })
       .addCase(addToCart.fulfilled, (state, action) => {
-        state.loading = false;
-        if (action.payload.data) {
-          state.cart = action.payload.data;
-        } else if (action.payload.cart) {
-          state.cart = action.payload.cart;
-        } else {
-          state.cart = action.payload;
-        }
+        state.cart = extractCartData(action.payload);
       })
       .addCase(addToCart.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       })
       
       // Remove from Cart
       .addCase(removeFromCart.pending, (state) => {
-        state.loading = true;
         state.error = null;
       })
       .addCase(removeFromCart.fulfilled, (state, action) => {
-        state.loading = false;
-        if (action.payload.data) {
-          state.cart = action.payload.data;
-        } else if (action.payload.cart) {
-          state.cart = action.payload.cart;
-        } else {
-          state.cart = action.payload;
-        }
+        state.cart = extractCartData(action.payload);
       })
       .addCase(removeFromCart.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       })
       
       // Clear Cart
       .addCase(clearCart.pending, (state) => {
-        state.loading = true;
         state.error = null;
       })
       .addCase(clearCart.fulfilled, (state, action) => {
-        state.loading = false;
+        // After clearing, cart should be empty
         state.cart = { items: [] };
       })
       .addCase(clearCart.rejected, (state, action) => {
-        state.loading = false;
         state.error = action.payload;
       });
   },
