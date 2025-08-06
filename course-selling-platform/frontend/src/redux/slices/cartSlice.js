@@ -5,7 +5,7 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'
 
 // Create axios instance with base URL and default config
 const api = axios.create({
-  baseURL: `${BACKEND_URL}/api`,
+  baseURL: `${BACKEND_URL}`,
   withCredentials: true, // This is crucial for sending cookies automatically
   headers: {
     'Content-Type': 'application/json'

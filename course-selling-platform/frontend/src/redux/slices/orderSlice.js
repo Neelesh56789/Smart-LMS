@@ -24,7 +24,7 @@ export const createOrder = createAsyncThunk(
         }
       };
       
-      const response = await axios.post('/api/orders', orderData, config);
+      const response = await axios.post('/orders', orderData, config);
       return response.data;
     } catch (error) {
       const message = 
@@ -52,7 +52,7 @@ export const getUserOrders = createAsyncThunk(
         }
       };
       
-      const response = await axios.get('/api/orders/my-orders', config);
+      const response = await axios.get('/orders/my-orders', config);
       return response.data;
     } catch (error) {
       const message = 
@@ -80,7 +80,7 @@ export const getOrderById = createAsyncThunk(
         }
       };
       
-      const response = await axios.get(`/api/orders/${id}`, config);
+      const response = await axios.get(`/orders/${id}`, config);
       return response.data;
     } catch (error) {
       const message = 
