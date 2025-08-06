@@ -4,7 +4,8 @@
   "description": "Backend for EduStream course selling platform",
   "main": "server.js",
   "scripts": {
-    "start": "nodemon server.js",
+    "start": "node server.js",
+    "build": "npm install",
     "postbuild": "node scripts/seed.js",
     "dev": "nodemon server.js",
     "seed": "node scripts/seed.js",
