@@ -3,7 +3,7 @@ import {store} from './redux/store'; // Adjust the import path as necessary
 
 // Determine the base URL from environment variables, with a fallback for local development.
 const BASE_URL = process.env.REACT_APP_BACKEND_URL 
-  ? `${process.env.REACT_APP_BACKEND_URL}/api` 
+  ? `${process.env.REACT_APP_BACKEND_URL}` 
   : 'http://localhost:5000/api';
 
 // Create a single, configured instance of Axios.
