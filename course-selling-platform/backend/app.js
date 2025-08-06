@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const morgan = ('morgan');
+const morgan = require('morgan'); // Corrected the require statement
 const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const path = require('path');
@@ -22,32 +22,45 @@ const app = express();
 connectDB();
 
 
+// --- CHANGE 1 START: MAKE CORS PRODUCTION-READY ---
+// This will allow requests from your deployed frontend URL and localhost
+const allowedOrigins = [
+  process.env.FRONTEND_URL, // You will set this in Render (e.g., https://your-frontend.onrender.com)
+  'http://localhost:3000'
+];
 
-// 1. CORS should be first
 app.use(cors({
-  origin:'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   credentials: true
 }));
+// --- CHANGE 1 END ---
 
+
+// This route MUST come before express.json()
 app.post(
   '/api/orders/stripe-webhook',
   express.raw({ type: 'application/json' }), // Stripe needs the raw body
   handleStripeWebhook
 );
 
-// --- END: THE FIX ---
-
-// 3. Standard Middleware (after the special webhook route)
- // Now, parse JSON for all other routes
+// Standard Middleware (after the special webhook route)
+app.use(express.json()); // Now, parse JSON for all other routes
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
+
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// --- Define ALL OTHER API Routes ---
-// The orderRoutes file will now handle everything EXCEPT the webhook.
+// --- Define ALL API Routes ---
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -57,14 +70,19 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/news', newsRoutes);
 
 
-// --- Serve Frontend & Handle Errors (Keep at the end) ---
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static('client/build'));
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve(__dirname, 'client', 'build', 'index.html'));
-  });
-}
+// --- CHANGE 2 START: REMOVE FRONTEND SERVING LOGIC & ADD ROOT ROUTE ---
+// The old code caused the file-not-found error because the backend service
+// shouldn't be responsible for serving the frontend files in this architecture.
 
+app.get("/", (req, res) => {
+  res.send("Smart-LMS API is running successfully.");
+});
+
+// The old `if (process.env.NODE_ENV === 'production')` block has been removed.
+// --- CHANGE 2 END ---
+
+
+// Final error-handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.statusCode || 500).json({
