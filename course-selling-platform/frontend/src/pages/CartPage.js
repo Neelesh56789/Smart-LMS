@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCart, removeFromCart, clearCart } from '../redux/slices/cartSlice';
@@ -10,18 +10,15 @@ const CartPage = () => {
   
   const { cart, loading, error } = useSelector(state => state.cart);
   const { isAuthenticated } = useSelector(state => state.auth);
-  
-  // Prevent infinite loops with useState
-  const [hasInitialized, setHasInitialized] = useState(false);
 
   const renderInstructorName = (instructor) => {
     return instructor?.name || 'Smart LMS';
   };
 
+  // SIMPLE FIX: Only fetch if authenticated AND cart is null
   useEffect(() => {
-    console.log('🛒 CartPage useEffect triggered', {
+    console.log('🛒 CartPage useEffect:', {
       isAuthenticated,
-      hasInitialized,
       cart: !!cart,
       loading
     });
@@ -32,20 +29,12 @@ const CartPage = () => {
       return;
     }
 
-    // Only fetch if we haven't initialized and user is authenticated
-    if (isAuthenticated && !hasInitialized) {
-      console.log('🛒 Dispatching getCart for first time');
-      setHasInitialized(true);
+    // Only fetch if cart is null (not loaded yet)
+    if (isAuthenticated && cart === null && !loading) {
+      console.log('🛒 Fetching cart - cart is null');
       dispatch(getCart());
     }
-  }, [isAuthenticated, navigate, dispatch, hasInitialized]);
-
-  // Reset initialization when user logs out
-  useEffect(() => {
-    if (!isAuthenticated) {
-      setHasInitialized(false);
-    }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, cart, loading, navigate, dispatch]);
 
   const handleRemoveItem = async (courseId) => {
     if (!courseId) return;
@@ -93,8 +82,8 @@ const CartPage = () => {
     return accumulator + (item.course?.price || 0);
   }, 0);
 
-  // Show loading only when there's no cart data and loading is true
-  if (loading && !cart) {
+  // Show loading only when cart is null and loading is true
+  if (cart === null && loading) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
