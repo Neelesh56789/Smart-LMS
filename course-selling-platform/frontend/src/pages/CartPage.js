@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { getCart, removeFromCart, clearCart } from '../redux/slices/cartSlice'; // updateCartItemQuantity is removed
+import { getCart, removeFromCart, clearCart } from '../redux/slices/cartSlice';
 import { toast } from 'react-toastify';
 
 const CartPage = () => {
@@ -15,14 +15,22 @@ const CartPage = () => {
     return instructor?.name || 'Smart LMS';
   };
 
-  useEffect(() => {
+  // Use useCallback to prevent unnecessary re-renders
+  const fetchCart = useCallback(() => {
     if (isAuthenticated) {
       dispatch(getCart());
-    } else {
+    }
+  }, [dispatch, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
       toast.info("Please login to view your cart.");
       navigate('/login');
+      return;
     }
-  }, [dispatch, isAuthenticated, navigate]);
+    
+    fetchCart();
+  }, [isAuthenticated, navigate, fetchCart]);
 
   const handleRemoveItem = async (courseId) => {
     if (!courseId) return;
@@ -30,7 +38,7 @@ const CartPage = () => {
       await dispatch(removeFromCart(courseId)).unwrap();
       toast.success('Item removed from cart');
     } catch (err) {
-      const errorMessage = err.message || 'Failed to remove item';
+      const errorMessage = err || 'Failed to remove item';
       toast.error(errorMessage);
     }
   };
@@ -41,7 +49,7 @@ const CartPage = () => {
         await dispatch(clearCart()).unwrap();
         toast.success('Cart cleared');
       } catch (err) {
-        const errorMessage = err.message || 'Failed to clear cart';
+        const errorMessage = err || 'Failed to clear cart';
         toast.error(errorMessage);
       }
     }
@@ -51,15 +59,18 @@ const CartPage = () => {
     navigate('/checkout');
   };
 
-  // Total is now a simple sum of item prices, as quantity is always 1.
-  const total = cart?.items?.reduce((accumulator, item) => {
+  // Safeguard: ensure cart and cart.items exist
+  const cartItems = cart?.items || [];
+  const total = cartItems.reduce((accumulator, item) => {
     return accumulator + (item.course?.price || 0);
-  }, 0) || 0;
+  }, 0);
 
+  // Show loading only when there's no cart data and loading is true
   if (loading && !cart) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+      <div className="flex flex-col justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4"></div>
+        <p className="text-gray-600">Loading your cart...</p>
       </div>
     );
   }
@@ -69,12 +80,18 @@ const CartPage = () => {
       <div className="container mx-auto px-4 py-10">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded" role="alert">
           <p><strong>Error:</strong> {error}</p>
+          <button 
+            onClick={fetchCart}
+            className="mt-2 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
 
-  if (!cart || cart.items.length === 0) {
+  if (!cart || cartItems.length === 0) {
     return (
       <div className="min-h-screen py-10">
         <div className="container mx-auto px-4">
@@ -102,30 +119,47 @@ const CartPage = () => {
           <div className="lg:w-2/3">
             <div className="bg-white rounded-lg shadow-md">
               <div className="p-6 border-b flex justify-between items-center">
-                <h2 className="text-xl font-semibold">Cart Items ({cart.items.length})</h2>
-                <button onClick={handleClearCart} className="text-sm font-medium text-red-600 hover:text-red-800">Clear Cart</button>
+                <h2 className="text-xl font-semibold">Cart Items ({cartItems.length})</h2>
+                {cartItems.length > 0 && (
+                  <button onClick={handleClearCart} className="text-sm font-medium text-red-600 hover:text-red-800">
+                    Clear Cart
+                  </button>
+                )}
               </div>
               
-              {cart.items.map(item => (
-                <div key={item.course?._id || item._id} className="p-6 border-b last:border-b-0 flex">
+              {cartItems.map(item => (
+                <div key={item.course?._id || item._id || Math.random()} className="p-6 border-b last:border-b-0 flex">
                   <img 
-                    src={item.course?.image || 'https://via.placeholder.com/150'} 
-                    alt={item.course?.title} 
+                    src={item.course?.image || item.course?.thumbnail || 'https://via.placeholder.com/150'} 
+                    alt={item.course?.title || 'Course'} 
                     className="w-32 h-24 object-cover rounded mr-6"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/150';
+                    }}
                   />
                   <div className="flex-grow flex flex-col">
                     <div>
                       <h3 className="text-lg font-semibold hover:text-blue-600">
-                        <Link to={`/courses/${item.course?._id}`}>{item.course?.title || 'Course not found'}</Link>
+                        {item.course?._id ? (
+                          <Link to={`/courses/${item.course._id}`}>{item.course?.title || 'Course not found'}</Link>
+                        ) : (
+                          <span>{item.course?.title || 'Course not found'}</span>
+                        )}
                       </h3>
                       <p className="text-sm text-gray-500">By {renderInstructorName(item.course?.instructor)}</p>
                     </div>
                     <div className="mt-auto flex justify-end items-center">
-                      <button onClick={() => handleRemoveItem(item.course?._id)} className="text-sm font-medium text-red-600 hover:text-red-800">Remove</button>
+                      <button 
+                        onClick={() => handleRemoveItem(item.course?._id)} 
+                        className="text-sm font-medium text-red-600 hover:text-red-800"
+                        disabled={loading}
+                      >
+                        {loading ? 'Removing...' : 'Remove'}
+                      </button>
                     </div>
                   </div>
                   <div className="text-lg font-bold text-gray-800 ml-6">
-                    ${(item.course?.price)?.toFixed(2)}
+                    ${(item.course?.price || 0).toFixed(2)}
                   </div>
                 </div>
               ))}
@@ -142,8 +176,12 @@ const CartPage = () => {
                   <span>${total.toFixed(2)}</span>
                 </div>
               </div>
-              <button onClick={handleCheckout} className="mt-6 w-full py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold">
-                Proceed to Checkout
+              <button 
+                onClick={handleCheckout} 
+                className="mt-6 w-full py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-semibold disabled:opacity-50"
+                disabled={cartItems.length === 0 || loading}
+              >
+                {loading ? 'Processing...' : 'Proceed to Checkout'}
               </button>
             </div>
           </div>

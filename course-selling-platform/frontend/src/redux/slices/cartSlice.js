@@ -1,14 +1,11 @@
 // src/redux/slices/cartSlice.js
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-// *** THE FIX: Import the central api instance. Do not create a new one here. ***
 import api from '../../api';
 
-// Helper to handle API errors consistently
 const handleApiError = (error, thunkAPI) => {
   const message = error.response?.data?.message || error.message || 'An unknown error occurred';
   if (error.response?.status === 401) {
-    // This message will be displayed to the user if the token is invalid.
     return thunkAPI.rejectWithValue('Your session has expired. Please login again.');
   }
   return thunkAPI.rejectWithValue(message);
@@ -20,12 +17,14 @@ const initialState = {
   error: null,
 };
 
-// All thunks now use the central `api` instance, which automatically sends the auth token.
 export const getCart = createAsyncThunk('cart/getCart', async (_, thunkAPI) => {
   try {
+    console.log('🛒 Fetching cart...');
     const response = await api.get('/cart');
+    console.log('🛒 Cart response:', response.data);
     return response.data;
   } catch (error) {
+    console.error('🛒 Cart error:', error.response?.data || error.message);
     return handleApiError(error, thunkAPI);
   }
 });
@@ -66,24 +65,86 @@ export const cartSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // This generic handler correctly manages loading and error states.
-    const createReducer = (thunk) => {
-        builder
-            .addCase(thunk.pending, (state) => {
-                state.loading = true;
-                state.error = null;
-            })
-            .addCase(thunk.fulfilled, (state, action) => {
-                state.loading = false;
-                state.cart = action.payload.data;
-            })
-            .addCase(thunk.rejected, (state, action) => {
-                state.loading = false;
-                state.error = action.payload;
-            });
-    };
-    // Apply the handler to all cart thunks.
-    [getCart, addToCart, removeFromCart, clearCart].forEach(createReducer);
+    builder
+      // Get Cart
+      .addCase(getCart.pending, (state) => {
+        console.log('🛒 Cart loading started');
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getCart.fulfilled, (state, action) => {
+        console.log('🛒 Cart loaded successfully:', action.payload);
+        state.loading = false;
+        // FIX: Handle different response structures
+        if (action.payload.data) {
+          state.cart = action.payload.data;
+        } else if (action.payload.cart) {
+          state.cart = action.payload.cart;
+        } else {
+          state.cart = action.payload;
+        }
+      })
+      .addCase(getCart.rejected, (state, action) => {
+        console.log('🛒 Cart loading failed:', action.payload);
+        state.loading = false;
+        state.error = action.payload;
+        // Set empty cart on error to prevent infinite loading
+        state.cart = { items: [] };
+      })
+      
+      // Add to Cart
+      .addCase(addToCart.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addToCart.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.data) {
+          state.cart = action.payload.data;
+        } else if (action.payload.cart) {
+          state.cart = action.payload.cart;
+        } else {
+          state.cart = action.payload;
+        }
+      })
+      .addCase(addToCart.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Remove from Cart
+      .addCase(removeFromCart.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(removeFromCart.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.data) {
+          state.cart = action.payload.data;
+        } else if (action.payload.cart) {
+          state.cart = action.payload.cart;
+        } else {
+          state.cart = action.payload;
+        }
+      })
+      .addCase(removeFromCart.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Clear Cart
+      .addCase(clearCart.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(clearCart.fulfilled, (state, action) => {
+        state.loading = false;
+        state.cart = { items: [] };
+      })
+      .addCase(clearCart.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
   },
 });
 
