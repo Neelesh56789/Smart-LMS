@@ -1,6 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../api'; // Use the central api instance
-import { updateProfile } from './authSlice';
+// import { updateProfile } from './authSlice';
 
 // Helper to safely get and parse items from localStorage
 const getStorageItem = (key) => {
