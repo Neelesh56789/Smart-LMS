@@ -5,14 +5,17 @@ import api from '../../api'; // Use the central api instance
 const getStorageItem = (key) => {
   try {
     const item = localStorage.getItem(key);
+    // Check for null or the string 'undefined' which can sometimes be stored
     if (item === null || item === 'undefined') return null;
     return JSON.parse(item);
   } catch (err) {
+    // If parsing fails, remove the invalid item
     localStorage.removeItem(key);
     return null;
   }
 };
 
+// Load the initial user state from localStorage
 const user = getStorageItem('user');
 
 const initialState = {
@@ -22,12 +25,13 @@ const initialState = {
   error: null,
 };
 
-// --- AUTHENTICATION THUNKS ---
+// --- ASYNC THUNKS ---
+// Thunks are now responsible ONLY for the API call. State and localStorage
+// are handled by the reducers.
 
 export const register = createAsyncThunk('auth/register', async (userData, { rejectWithValue }) => {
   try {
     const response = await api.post('/auth/register', userData);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
     return response.data.user;
   } catch (error) {
     const message = error.response?.data?.message || error.message;
@@ -38,7 +42,6 @@ export const register = createAsyncThunk('auth/register', async (userData, { rej
 export const login = createAsyncThunk('auth/login', async (userData, { rejectWithValue }) => {
   try {
     const response = await api.post('/auth/login', userData);
-    localStorage.setItem('user', JSON.stringify(response.data.user));
     return response.data.user;
   } catch (error) {
     const message = error.response?.data?.message || error.message;
@@ -47,12 +50,10 @@ export const login = createAsyncThunk('auth/login', async (userData, { rejectWit
 });
 
 export const logout = createAsyncThunk('auth/logout', async () => {
+  // We can still make the API call to invalidate the session on the server
   await api.post('/auth/logout');
-  localStorage.removeItem('user');
 });
 
-// --- START: THE FIX ---
-// Adding the missing 'sendPasswordResetEmail' async thunk back.
 export const sendPasswordResetEmail = createAsyncThunk(
   'auth/sendPasswordResetEmail',
   async (email, { rejectWithValue }) => {
@@ -65,7 +66,6 @@ export const sendPasswordResetEmail = createAsyncThunk(
     }
   }
 );
-// --- END: THE FIX ---
 
 export const resetPassword = createAsyncThunk(
   'auth/resetPassword',
@@ -85,9 +85,7 @@ export const updateProfile = createAsyncThunk(
   async (profileData, { rejectWithValue }) => {
     try {
       const res = await api.put('/profile', profileData);
-      const updatedUser = res.data.data;
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      return updatedUser;
+      return res.data.data; // This is the updated user from the backend
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Failed to update profile';
       return rejectWithValue(message);
@@ -99,11 +97,8 @@ export const updateProfilePhoto = createAsyncThunk(
   'auth/updateProfilePhoto',
   async (formData, { rejectWithValue }) => {
     try {
-      // The api instance is already configured. We don't need to set headers manually.
       const res = await api.put('/profile/photo', formData);
-      const updatedUser = res.data.data;
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      return updatedUser;
+      return res.data.data; // This is the updated user from the backend
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Failed to upload photo';
       return rejectWithValue(message);
@@ -122,11 +117,15 @@ export const authSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Register
-      .addCase(register.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(register.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload;
+        localStorage.setItem('user', JSON.stringify(action.payload));
       })
       .addCase(register.rejected, (state, action) => {
         state.loading = false;
@@ -135,11 +134,15 @@ export const authSlice = createSlice({
         state.isAuthenticated = false;
       })
       // Login
-      .addCase(login.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(login.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
         state.user = action.payload;
+        localStorage.setItem('user', JSON.stringify(action.payload));
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
@@ -153,9 +156,9 @@ export const authSlice = createSlice({
         state.isAuthenticated = false;
         state.loading = false;
         state.error = null;
+        localStorage.removeItem('user');
       })
-      // --- START: THE FIX ---
-      // Adding the extra reducers for the forgot password flow.
+      // Password Reset Email
       .addCase(sendPasswordResetEmail.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -167,31 +170,40 @@ export const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // --- END: THE FIX ---
       // Update Profile
       .addCase(updateProfile.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(updateProfile.fulfilled, (state, action) => {
-        state.loading = false;
-        state.user = action.payload;
-      })
+    state.loading = false;
+    
+    // THE FIX: Merge the existing user (with token) and the new data
+    const updatedUser = { ...state.user, ...action.payload };
+
+    // Update the state with the merged object
+    state.user = updatedUser;
+    
+    // Save the correctly merged object to localStorage
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+})
       .addCase(updateProfile.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+      // Update Profile Photo
       .addCase(updateProfilePhoto.pending, (state) => {
-      state.loading = true;
-    })
-    .addCase(updateProfilePhoto.fulfilled, (state, action) => {
-      state.loading = false;
-      state.user = action.payload; // Update user state with new photo URL
-    })
-    .addCase(updateProfilePhoto.rejected, (state, action) => {
-      state.loading = false;
-      state.error = action.payload;
-    });
+        state.loading = true;
+      })
+      .addCase(updateProfilePhoto.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload;
+        localStorage.setItem('user', JSON.stringify(action.payload));
+      })
+      .addCase(updateProfilePhoto.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      });
   },
 });
 

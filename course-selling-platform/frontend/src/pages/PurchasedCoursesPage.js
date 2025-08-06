@@ -3,83 +3,80 @@ import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { toast } from 'react-toastify';
 import api from '../api';
-
 const PurchasedCoursesPage = () => {
-  const { user } = useSelector(state => state.auth);
-  
+  const { user: authUser } = useSelector(state => state.auth);
   const [purchasedCourses, setPurchasedCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [certificateLoading, setCertificateLoading] = useState(null);
-  
    useEffect(() => {
     const fetchCoursesAndProgress = async () => {
-      if (!user) {
+      if (!authUser) {
         setLoading(false);
         return;
       }
       try {
         setLoading(true);
-        // 1. Fetch the basic details of the purchased courses.
+        // 1. Fetch the fresh user data from database to get updated lessonStatuses
+        const userRes = await api.get(`/auth/me/?id=${authUser._id}`, {
+          headers: {
+            Authorization: `Bearer ${authUser.token}`
+          }
+        });
+        const freshUser = userRes.data.data;
+        console.log("Fetched fresh user data:", freshUser);
+        // 2. Fetch the basic details of the purchased courses.
         const coursesRes = await api.get('/orders/my-courses');
+        console.log("Fetched courses:", coursesRes.data.data);
         const myCourses = coursesRes.data.data;
-        
-        // 2. Fetch the full content (with modules/lessons) ONLY to get the total lesson count.
+        // 3. Fetch the full content (with modules/lessons) ONLY to get the total lesson count.
         const coursesWithContent = await Promise.all(
           myCourses.map(async (course) => {
             const contentRes = await api.get(`/courses/${course._id}/content`);
             return contentRes.data.data;
           })
         );
-        
-        // 3. Get the set of completed lesson IDs from our up-to-date Redux user object.
+        console.log("Fetched course content:", coursesWithContent);
+        // 4. Get the set of completed lesson IDs from the fresh user data from database.
         const completedLessonsSet = new Set(
-          user.lessonStatuses
+          freshUser.lessonStatuses
             .filter(ls => ls.status === 'correct' || ls.status === 'completed')
             .map(ls => ls.lesson)
         );
-        
-        // 4. Calculate progress for each course.
+        // 5. Calculate progress for each course.
         const coursesWithProgress = coursesWithContent.map(course => {
           const totalLessons = course.modules.reduce((sum, module) => sum + module.lessons.length, 0);
           if (totalLessons === 0) return { ...course, progress: 0 };
-
-          const completedCount = course.modules.reduce((sum, module) => 
+          const completedCount = course.modules.reduce((sum, module) =>
             sum + module.lessons.filter(lesson => completedLessonsSet.has(lesson._id)).length,
           0);
-          
           const progress = Math.round((completedCount / totalLessons) * 100);
           return { ...course, progress };
         });
-
         setPurchasedCourses(coursesWithProgress);
-
       } catch (err) {
+        console.error("Error fetching courses and progress:", err);
         toast.error('Failed to fetch your courses');
       } finally {
         setLoading(false);
       }
     };
-    
     fetchCoursesAndProgress();
-  }, [user]); 
-  
+  }, [authUser]);
   const handleGetCertificate = async (courseId) => {
-    setCertificateLoading(courseId); 
+    setCertificateLoading(courseId);
     try {
       const res = await api.get(`/courses/${courseId}/certificate`, {
         responseType: 'blob',
       });
-
       const file = new Blob([res.data], { type: 'application/pdf' });
       const fileURL = URL.createObjectURL(file);
       window.open(fileURL, '_blank');
-
     } catch (err) {
       const errorMsg = err.response?.data?.message || 'Could not generate certificate. Please ensure the course is 100% complete.';
       toast.error(errorMsg);
     } finally {
-      setCertificateLoading(null); 
+      setCertificateLoading(null);
     }
   };
   const filteredCourses = purchasedCourses.filter(course => {
@@ -87,7 +84,6 @@ const PurchasedCoursesPage = () => {
     if (activeTab === 'completed') return course.progress === 100;
     return true;
   });
-  
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
@@ -96,33 +92,30 @@ const PurchasedCoursesPage = () => {
       </div>
     );
   }
-  
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-5xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">My Learning</h1>
-        
         <div className="flex border-b border-gray-200 mb-6">
-          <button 
+          <button
             className={`py-2 px-4 font-medium ${activeTab === 'all' ? 'text-blue-600 border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-700'}`}
             onClick={() => setActiveTab('all')}
           >
             All Courses
           </button>
-          <button 
+          <button
             className={`py-2 px-4 font-medium ${activeTab === 'in-progress' ? 'text-blue-600 border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-700'}`}
             onClick={() => setActiveTab('in-progress')}
           >
             In Progress
           </button>
-          <button 
+          <button
             className={`py-2 px-4 font-medium ${activeTab === 'completed' ? 'text-blue-600 border-b-2 border-blue-500' : 'text-gray-500 hover:text-gray-700'}`}
             onClick={() => setActiveTab('completed')}
           >
             Completed
           </button>
         </div>
-        
         {filteredCourses.length === 0 ? (
           <div className="text-center bg-white p-12 rounded-lg shadow">
             <h3 className="text-xl font-semibold text-gray-700 mb-2">
@@ -143,21 +136,18 @@ const PurchasedCoursesPage = () => {
                 <div className="p-6 md:w-2/3 flex flex-col">
                   <h2 className="text-xl font-bold mb-1">{course.title}</h2>
                   <p className="text-gray-600 text-sm mb-4">By {course.instructor?.name || 'Smart LMS'}</p>
-                  
                   <div className="mb-4">
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                       <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${course.progress}%` }}></div>
                     </div>
                     <p className="text-right text-xs text-gray-500 mt-1">{course.progress}% Complete</p>
                   </div>
-                  
                   <div className="mt-auto flex items-center justify-between">
                     <Link to={`/courses/${course._id}/learn`} className="bg-blue-600 text-white font-bold py-2 px-4 rounded hover:bg-blue-700">
                       {course.progress === 100 ? 'Review Course' : 'Continue Learning'}
                     </Link>
-                    
                     {course.progress === 100 && (
-                      <button 
+                      <button
                         onClick={() => handleGetCertificate(course._id)}
                         disabled={certificateLoading === course._id}
                         className="flex items-center text-green-600 font-semibold hover:text-green-700 disabled:opacity-50"
@@ -183,5 +173,4 @@ const PurchasedCoursesPage = () => {
     </div>
   );
 };
-
 export default PurchasedCoursesPage;
