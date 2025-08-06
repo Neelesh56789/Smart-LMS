@@ -1,6 +1,7 @@
+// src/redux/slices/authSlice.js
+
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../api'; // Use the central api instance
-// import { updateProfile } from './authSlice';
 
 // Helper to safely get and parse items from localStorage
 const getStorageItem = (key) => {
@@ -27,8 +28,6 @@ const initialState = {
 };
 
 // --- ASYNC THUNKS ---
-// Thunks are now responsible ONLY for the API call. State and localStorage
-// are handled by the reducers.
 
 export const register = createAsyncThunk('auth/register', async (userData, { rejectWithValue }) => {
   try {
@@ -51,7 +50,6 @@ export const login = createAsyncThunk('auth/login', async (userData, { rejectWit
 });
 
 export const logout = createAsyncThunk('auth/logout', async () => {
-  // We can still make the API call to invalidate the session on the server
   await api.post('/auth/logout');
 });
 
@@ -86,7 +84,7 @@ export const updateProfile = createAsyncThunk(
   async (profileData, { rejectWithValue }) => {
     try {
       const res = await api.put('/profile', profileData);
-      return res.data.data; // This is the updated user from the backend
+      return res.data.data;
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Failed to update profile';
       return rejectWithValue(message);
@@ -99,7 +97,7 @@ export const updateProfilePhoto = createAsyncThunk(
   async (formData, { rejectWithValue }) => {
     try {
       const res = await api.put('/profile/photo', formData);
-      return res.data.data; // This is the updated user from the backend
+      return res.data.data;
     } catch (err) {
       const message = err.response?.data?.message || err.message || 'Failed to upload photo';
       return rejectWithValue(message);
@@ -118,10 +116,7 @@ export const authSlice = createSlice({
   extraReducers: (builder) => {
     builder
       // Register
-      .addCase(register.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      .addCase(register.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(register.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
@@ -135,10 +130,7 @@ export const authSlice = createSlice({
         state.isAuthenticated = false;
       })
       // Login
-      .addCase(login.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      .addCase(login.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(login.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
@@ -160,46 +152,28 @@ export const authSlice = createSlice({
         localStorage.removeItem('user');
       })
       // Password Reset Email
-      .addCase(sendPasswordResetEmail.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(sendPasswordResetEmail.fulfilled, (state) => {
-        state.loading = false;
-      })
-      .addCase(sendPasswordResetEmail.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload;
-      })
+      .addCase(sendPasswordResetEmail.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(sendPasswordResetEmail.fulfilled, (state) => { state.loading = false; })
+      .addCase(sendPasswordResetEmail.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
       // Update Profile
-      .addCase(updateProfile.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
+      .addCase(updateProfile.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(updateProfile.fulfilled, (state, action) => {
-    state.loading = false;
-    
-    // THE FIX: Merge the existing user (with token) and the new data
-    const updatedUser = { ...state.user, ...action.payload };
-
-    // Update the state with the merged object
-    state.user = updatedUser;
-    
-    // Save the correctly merged object to localStorage
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-})
-      .addCase(updateProfile.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        const updatedUser = { ...state.user, ...action.payload };
+        state.user = updatedUser;
+        localStorage.setItem('user', JSON.stringify(updatedUser));
       })
+      .addCase(updateProfile.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
       // Update Profile Photo
-      .addCase(updateProfilePhoto.pending, (state) => {
-        state.loading = true;
-      })
+      .addCase(updateProfilePhoto.pending, (state) => { state.loading = true; })
       .addCase(updateProfilePhoto.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload;
-        localStorage.setItem('user', JSON.stringify(action.payload));
+        // *** THE FIX ***
+        // This now correctly MERGES the user data, which preserves the token,
+        // instead of REPLACING it.
+        const updatedUser = { ...state.user, ...action.payload };
+        state.user = updatedUser;
+        localStorage.setItem('user', JSON.stringify(updatedUser));
       })
       .addCase(updateProfilePhoto.rejected, (state, action) => {
         state.loading = false;
