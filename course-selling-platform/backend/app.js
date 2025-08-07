@@ -46,9 +46,21 @@ app.use(cors({
 
 // This route MUST come before express.json()
 app.post(
-  '/api/orders/stripe-webhook',
-  express.raw({ type: 'application/json' }), // Stripe needs the raw body
+  '/api/orders/webhook',  // ✅ This matches what your Stripe dashboard should have
+  express.raw({ type: 'application/json' }),
   handleStripeWebhook
+);
+
+app.post(
+  '/api/orders/webhook-test',
+  express.raw({ type: 'application/json' }),
+  (req, res) => {
+    console.log('🔥🔥🔥 WEBHOOK TEST HIT! 🔥🔥🔥');
+    console.log('Time:', new Date().toISOString());
+    console.log('Headers:', req.headers);
+    console.log('Body type:', typeof req.body);
+    res.json({ success: true, message: 'Test working!' });
+  }
 );
 
 // Standard Middleware (after the special webhook route)
