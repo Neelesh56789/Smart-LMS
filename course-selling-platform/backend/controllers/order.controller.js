@@ -6,85 +6,211 @@ const User = require('../models/User');
 const Course = require('../models/Course');
 const Cart = require('../models/Cart');
 
-// --- FUNCTION 1: CREATE CHECKOUT SESSION (Enhanced with better metadata)
+// --- FUNCTION 1: CREATE CHECKOUT SESSION (Enhanced with better metadata) ---
 exports.createCheckoutSession = async (req, res) => {
   try {
-    const { userId, cartItems } = req.body;
-
-    const lineItems = cartItems.map((item) => ({
+    const { items } = req.body;
+    const userId = req.user.id;
+    
+    console.log('🛒 Creating checkout session for user:', userId);
+    console.log('🛒 Items requested:', items);
+    
+    if (!items || items.length === 0) {
+      return res.status(400).json({ message: 'No items provided.' });
+    }
+    
+    const courseIds = items.map(item => item.courseId);
+    const coursesFromDB = await Course.find({ _id: { $in: courseIds } });
+    
+    console.log('🛒 Courses found in DB:', coursesFromDB.length);
+    
+    if (coursesFromDB.length !== items.length) {
+      return res.status(400).json({ message: 'One or more courses not found.' });
+    }
+    
+    const line_items = coursesFromDB.map(course => ({
       price_data: {
         currency: 'usd',
-        product_data: { name: item.name },
-        unit_amount: Math.round(item.price * 100),
+        product_data: { 
+          name: course.title, 
+          images: course.image ? [course.image] : [] 
+        },
+        unit_amount: Math.round(course.price * 100),
       },
       quantity: 1,
     }));
-
+    
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: lineItems,
       mode: 'payment',
-      success_url: `${process.env.CLIENT_URL}/success`,
-      cancel_url: `${process.env.CLIENT_URL}/cancel`,
-      metadata: { userId: userId, cart: JSON.stringify(cartItems) },
+      line_items,
+      customer_email: req.user.email,
+      success_url: `${process.env.FRONTEND_URL}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.FRONTEND_URL}/cart`,
+      metadata: {
+        userId: userId.toString(), // Ensure it's a string
+        courseIds: JSON.stringify(courseIds), // Store course IDs directly
+        userEmail: req.user.email, // Add email for extra validation
+      },
     });
-
-    res.json({ id: session.id });
+    
+    console.log('🛒 Checkout session created:', session.id);
+    res.status(200).json({ id: session.id });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    res.status(500).json({ error: 'Failed to create checkout session' });
+    console.error('❌ Stripe Session Error:', error);
+    res.status(500).json({ message: 'Failed to create Stripe session' });
   }
 };
 
-// --- FUNCTION 2: STRIPE WEBHOOK HANDLER
-exports.stripeWebhook = async (req, res) => {
+// --- FUNCTION 2: HANDLE STRIPE WEBHOOK (Enhanced with better error handling) ---
+exports.handleStripeWebhook = async (req, res) => {
+  console.log('🎯 === STRIPE WEBHOOK ENDPOINT HIT ===');
+  console.log('🎯 Headers:', JSON.stringify(req.headers, null, 2));
+  
   const sig = req.headers['stripe-signature'];
-
   let event;
+
   try {
-    event = stripe.webhooks.constructEvent(
-      req.rawBody,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    console.log('✅ Webhook signature verified successfully.');
+    console.log('🎯 Event type:', event.type);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
+    console.error('❌ WEBHOOK SIGNATURE VERIFICATION FAILED:', err.message);
+    console.error('❌ Raw body type:', typeof req.body);
+    console.error('❌ Raw body length:', req.body ? req.body.length : 'undefined');
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const userId = session.metadata.userId;
-    const cartItems = JSON.parse(session.metadata.cart);
+    console.log('🎯 Processing payment for session ID:', session.id);
+    console.log('🎯 Session metadata:', JSON.stringify(session.metadata, null, 2));
+    console.log('🎯 Session amount:', session.amount_total);
 
     try {
-      const order = await Order.create({
-        user: userId,
-        items: cartItems,
-        total: session.amount_total / 100,
-        status: 'paid',
-      });
-
-      // DEBUG LOG: Show all orders after new order creation
-      const orders = await Order.find({}).lean();
-      console.log(
-        '📦 Current Orders:',
-        orders.map((o) => ({ id: o._id, user: o.user, status: o.status }))
-      );
-
-      await Cart.deleteMany({ user: userId });
-
-      for (const item of cartItems) {
-        await Course.findByIdAndUpdate(item.courseId, {
-          $addToSet: { students: userId },
-        });
+      console.log('🎯 === STARTING ORDER FULFILLMENT ===');
+      
+      const { userId, courseIds, userEmail } = session.metadata;
+      
+      // Enhanced validation
+      if (!userId) {
+        throw new Error('Critical Error: Missing userId in session metadata');
       }
-    } catch (error) {
-      console.error('Error creating order:', error);
+      
+      if (!courseIds) {
+        throw new Error('Critical Error: Missing courseIds in session metadata');
+      }
+      
+      let parsedCourseIds;
+      try {
+        parsedCourseIds = JSON.parse(courseIds);
+      } catch (parseError) {
+        throw new Error('Critical Error: Invalid courseIds format in metadata');
+      }
+      
+      console.log(`🎯 [DATA] UserID: ${userId}`);
+      console.log(`🎯 [DATA] User Email: ${userEmail}`);
+      console.log(`🎯 [DATA] CourseIDs: ${parsedCourseIds.join(', ')}`);
+
+      if (!Array.isArray(parsedCourseIds) || parsedCourseIds.length === 0) {
+        throw new Error('Critical Error: CourseIDs array is empty or invalid');
+      }
+
+      // Verify user exists
+      const userExists = await User.findById(userId);
+      if (!userExists) {
+        throw new Error(`Critical Error: User ${userId} not found in database`);
+      }
+      console.log(`🎯 [OK] User ${userId} verified in database`);
+
+      // Verify courses exist
+      const coursesFromDB = await Course.find({ _id: { $in: parsedCourseIds } });
+      if (coursesFromDB.length !== parsedCourseIds.length) {
+        throw new Error(`Critical Error: Some courses not found. Expected: ${parsedCourseIds.length}, Found: ${coursesFromDB.length}`);
+      }
+      console.log(`🎯 [OK] All ${coursesFromDB.length} courses verified in database`);
+
+      // 1. CREATE THE ORDER
+      const itemsForOrder = coursesFromDB.map(course => ({ 
+        course: course._id, 
+        price: course.price 
+      }));
+      
+      const newOrder = await Order.create({
+        user: userId,
+        items: itemsForOrder,
+        totalAmount: session.amount_total / 100,
+        status: 'completed',
+        paymentId: session.payment_intent,
+        stripeSessionId: session.id, // Add this for tracking
+        createdAt: new Date()
+      });
+      
+      console.log(`🎯 [OK] Step 1/3: Order created with ID ${newOrder._id}`);
+
+      // 2. UPDATE THE USER - Add courses to purchasedCourses array
+      const userUpdateResult = await User.updateOne(
+        { _id: userId },
+        { 
+          $addToSet: { 
+            purchasedCourses: { $each: parsedCourseIds } 
+          }
+        }
+      );
+      
+      console.log(`🎯 [OK] Step 2/3: User update result:`, userUpdateResult);
+      
+      // Verify the update worked
+      const updatedUser = await User.findById(userId).select('purchasedCourses');
+      console.log(`🎯 [VERIFY] User now has ${updatedUser.purchasedCourses.length} purchased courses`);
+      console.log(`🎯 [VERIFY] Purchased courses:`, updatedUser.purchasedCourses);
+
+      // 3. CLEAR THE CART
+      const cartUpdateResult = await Cart.updateOne(
+        { user: userId },
+        { $pull: { items: { course: { $in: parsedCourseIds } } } }
+      );
+      
+      console.log(`🎯 [OK] Step 3/3: Cart update result:`, cartUpdateResult);
+      
+      // Verify cart was cleared
+      const updatedCart = await Cart.findOne({ user: userId });
+      console.log(`🎯 [VERIFY] Cart now has ${updatedCart?.items?.length || 0} items`);
+      
+      console.log('🎯 === ✅ ORDER FULFILLED SUCCESSFULLY ===');
+
+    } catch (err) {
+      console.error('🎯 === ❌ CRITICAL ERROR FULFILLING ORDER ===');
+      console.error('🎯 Error details:', err.message);
+      console.error('🎯 Error stack:', err.stack);
+      
+      // Still return 200 to Stripe to prevent retries, but log the error
+      // You might want to implement a notification system here
+      console.error('🎯 ⚠️  MANUAL INTERVENTION REQUIRED - Order may need manual processing');
+      
+      // Optionally, you could create a failed order record here for manual review
+      try {
+        await Order.create({
+          user: session.metadata.userId || 'unknown',
+          items: [],
+          totalAmount: session.amount_total / 100,
+          status: 'failed',
+          paymentId: session.payment_intent,
+          stripeSessionId: session.id,
+          errorMessage: err.message,
+          createdAt: new Date()
+        });
+        console.log('🎯 Failed order record created for manual review');
+      } catch (orderError) {
+        console.error('🎯 Could not create failed order record:', orderError.message);
+      }
     }
+  } else {
+    console.log(`🎯 Unhandled event type: ${event.type}`);
   }
 
-  res.json({ received: true });
+  // Always return 200 to Stripe
+  res.status(200).json({ received: true });
 };
 
 // --- FUNCTION 3: GET MY COURSES (Enhanced with better debugging) ---
@@ -97,7 +223,6 @@ exports.getMyCourses = async (req, res) => {
       user: req.user.id, 
       status: 'completed' 
     }).populate('items.course');
-    
     
     console.log('📚 Found orders:', orders.length);
     
