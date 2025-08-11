@@ -87,27 +87,6 @@ exports.stripeWebhook = async (req, res) => {
   res.json({ received: true });
 };
 
-// --- FUNCTION 3: GET ALL ORDERS
-exports.getOrders = async (req, res) => {
-  try {
-    const orders = await Order.find({})
-      .populate('user', 'name email')
-      .sort({ createdAt: -1 });
-
-    // DEBUG LOG: Show all orders when fetched
-    console.log(
-      '📦 Fetched Orders:',
-      orders.map((o) => ({ id: o._id, user: o.user, status: o.status }))
-    );
-
-    res.json(orders);
-  } catch (error) {
-    console.error('Error fetching orders:', error);
-    res.status(500).json({ error: 'Failed to fetch orders' });
-  }
-};
-
-
 // --- FUNCTION 3: GET MY COURSES (Enhanced with better debugging) ---
 exports.getMyCourses = async (req, res) => {
   try {
