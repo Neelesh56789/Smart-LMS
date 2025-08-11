@@ -49,7 +49,7 @@ const CheckoutPage = () => {
     try {
       const itemsForBackend = checkoutItems.map(item => ({
         courseId: item.course._id,
-        quantity: 1, // Always send quantity as 1
+        quantity: 1, 
       }));
 
       const { data } = await api.post('/orders/create-checkout-session', {
