@@ -1,4 +1,4 @@
-// Filename: app.js (FINAL, FOOLPROOF CONFIGURATION)
+// Filename: app.js (FINAL, CORRECTED, AND FULLY FUNCTIONAL)
 
 const express = require('express');
 const cors = require('cors');
@@ -9,7 +9,6 @@ const path = require('path');
 require('dotenv').config();
 
 // --- Import all routes ---
-const webhookRoutes = require('./routes/webhook.routes.js'); // <-- NEW dedicated router
 const authRoutes = require('./routes/auth.routes');
 const courseRoutes = require('./routes/course.routes');
 const categoryRoutes = require('./routes/category.routes');
@@ -18,28 +17,34 @@ const orderRoutes = require('./routes/order.routes');
 const profileRoutes = require('./routes/profile.routes');
 const newsRoutes = require('./routes/news.routes');
 
+// --- Import the webhook controller function directly for special handling ---
+const { handleStripeWebhook } = require('./controllers/order.controller');
+
 // --- Initialize App and DB ---
 const app = express();
 connectDB();
 
-/* ========= CORS SETUP ========= */
+/* ========= CORS SETUP (Should come early) ========= */
 app.use(cors({
-  // ... your cors options ...
+  // your cors options...
 }));
 
-// =========================================================================
-//            *** THE NEW, FOOLPROOF ROUTING ORDER ***
-// =========================================================================
 
-// STEP 1: Mount the DEDICATED, UNPROTECTED webhook router FIRST.
-// It's mounted on a unique path to avoid any confusion.
-// This route will NOT use the global JSON parser.
-app.use('/api/webhooks', webhookRoutes);
+app.post(
+  '/api/webhooks/stripe',
+  express.raw({ type: 'application/json' }),
+  handleStripeWebhook
+);
 
-// STEP 2: NOW, enable the global JSON parser for all OTHER routes.
 app.use(express.json());
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
+if (process.env.NODE_ENV === 'development') {
+  app.use(morgan('dev'));
+}
 
-// STEP 3: Mount all your OTHER API routers that need JSON parsing and protection.
+// STEP 3: Mount all your regular API routers. They will now correctly use
+// the global middleware defined above.
 app.use('/api/auth', authRoutes);
 app.use('/api/courses', courseRoutes);
 app.use('/api/categories', categoryRoutes);
@@ -50,17 +55,12 @@ app.use('/api/news', newsRoutes);
 
 // =========================================================================
 
-/* ========= OTHER MIDDLEWARE & ROUTES ========= */
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-}
+
+/* ========= ROOT ROUTE AND ERROR HANDLER ========= */
 app.get("/", (req, res) => {
-  res.send("Smart-LMS API (Root) is running successfully.");
+  res.send("Smart-LMS API is running successfully.");
 });
 
-/* ========= ERROR HANDLER ========= */
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.statusCode || 500).json({
