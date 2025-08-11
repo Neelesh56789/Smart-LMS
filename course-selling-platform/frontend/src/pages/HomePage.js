@@ -70,9 +70,9 @@ const HomePage = () => {
               <Link to="/courses" className="inline-block bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition duration-300">
                 Browse Courses
               </Link>
-              <Link to="/register" className="inline-block bg-transparent border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition duration-300">
+              {/* <Link to="/register" className="inline-block bg-transparent border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition duration-300">
                 Sign Up Free
-              </Link>
+              </Link> */}
             </div>
           </div>
           <div className="md:w-1/2 md:pl-10">
@@ -183,9 +183,9 @@ const HomePage = () => {
             <Link to="/courses" className="inline-block bg-white text-indigo-600 px-8 py-3 rounded-lg font-semibold hover:bg-indigo-50 transition duration-300">
               Explore Courses
             </Link>
-            <Link to="/register" className="inline-block bg-transparent border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-indigo-600 transition duration-300">
+            {/* <Link to="/register" className="inline-block bg-transparent border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-indigo-600 transition duration-300">
               Sign Up Now
-            </Link>
+            </Link> */}
           </div>
         </div>
       </section>
