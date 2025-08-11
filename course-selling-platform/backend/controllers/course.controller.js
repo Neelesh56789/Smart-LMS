@@ -473,39 +473,40 @@ exports.updateLessonStatus = async (req, res) => {
     const { lessonId } = req.params;
     const { status } = req.body; // Expecting 'correct', 'incorrect', or 'completed'
 
-    // Validate the incoming status
     if (!['correct', 'incorrect', 'completed'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status provided.' });
     }
 
     const user = await User.findById(userId);
 
-    const existingAttempt = user.lessonStatuses.find(
+    // Find the index of an existing status for this lesson
+    const statusIndex = user.lessonStatuses.findIndex(
       (ls) => ls.lesson.toString() === lessonId
     );
 
-    // Only record the first attempt/completion
-    if (existingAttempt) {
-      return res.status(200).json({
-        success: true,
-        message: 'Status already recorded.',
-        data: user.lessonStatuses,
-      });
+    if (statusIndex > -1) {
+      // If a status for this lesson already exists, UPDATE it. This is the fix.
+      user.lessonStatuses[statusIndex].status = status;
+    } else {
+      // If it doesn't exist, ADD the new status to the array.
+      user.lessonStatuses.push({ lesson: lessonId, status: status });
     }
-
-    user.lessonStatuses.push({ lesson: lessonId, status: status });
+    
+    // Tell Mongoose that the nested array has been modified. This is crucial!
+    user.markModified('lessonStatuses'); 
     await user.save();
 
+    // Send back a success response
     res.status(200).json({
       success: true,
-      data: user.lessonStatuses,
+      message: 'Progress updated successfully.',
+      data: user.lessonStatuses, // Send back the full list for potential debugging
     });
   } catch (error) {
     console.error('Update Lesson Status Error:', error);
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
-
 exports.generateCertificate = async (req, res) => {
   try {
     const userId = req.user.id;

@@ -1,3 +1,5 @@
+// Filename: routes/course.routes.js (REPLACE ENTIRE FILE)
+
 const express = require('express');
 const router = express.Router();
 const {
@@ -8,15 +10,13 @@ const {
   deleteCourse,
   getFeaturedCourses,
   getCourseContent,
-  markLessonAsComplete,
-  submitQuizAttempt,
-  updateLessonStatus,
+  updateLessonStatus, // We only need this one for progress
   generateCertificate
 } = require('../controllers/course.controller');
 
 const { protect, authorize } = require('../middleware/auth');
 
-// Special route for featured courses
+// --- Public & General Course Routes ---
 router.get('/featured', getFeaturedCourses);
 
 router
@@ -30,9 +30,10 @@ router
   .put(protect, authorize('instructor', 'admin'), updateCourse)
   .delete(protect, authorize('instructor', 'admin'), deleteCourse);
 
+// --- Learning & Content-Specific Routes (All Protected) ---
 router.route('/:courseId/content').get(protect, getCourseContent);
-router.route('/:courseId/lessons/:lessonId/complete').post(protect, markLessonAsComplete);
-// router.route('/lessons/:lessonId/attempt').post(protect, submitQuizAttempt);
+
+// This is now the SINGLE, RELIABLE route for all progress updates
 router.route('/lessons/:lessonId/status').post(protect, updateLessonStatus);
 
 router.route('/:courseId/certificate').get(protect, generateCertificate);

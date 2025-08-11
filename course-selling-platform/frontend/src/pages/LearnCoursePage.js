@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
+// Filename: LearnCourse.js (CORRECTED AND FINAL VERSION)
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../api';
 import CourseSidebar from '../components/course/CourseSidebar';
 import ContentPlayer from '../components/course/ContentPlayer';
-import { useSelector, useDispatch } from 'react-redux';
-import { updateProfile } from '../redux/slices/authSlice';
+import { useSelector } from 'react-redux';
 
 const LearnCoursePage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const { user } = useSelector(state => state.auth);
 
   const [course, setCourse] = useState(null);
@@ -19,6 +19,7 @@ const LearnCoursePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // This effect will initialize the lesson statuses from the Redux user state
   useEffect(() => {
     if (user?.lessonStatuses) {
       const statusMap = new Map();
@@ -27,58 +28,76 @@ const LearnCoursePage = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    const fetchCourseContent = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await api.get(`/courses/${courseId}/content`);
-        if (res.data.success && res.data.data) {
-          setCourse(res.data.data);
-          if (res.data.data.modules?.[0]?.lessons?.[0]) {
-            setActiveLesson(res.data.data.modules[0].lessons[0]);
-          }
-        } else {
-          throw new Error('Course content could not be loaded.');
+  // This effect fetches the course content itself
+  const fetchCourseContent = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await api.get(`/courses/${courseId}/content`);
+      if (res.data.success && res.data.data) {
+        setCourse(res.data.data);
+        if (res.data.data.modules?.[0]?.lessons?.[0]) {
+          setActiveLesson(res.data.data.modules[0].lessons[0]);
         }
-      } catch (err) {
-        setError(err.response?.data?.message || 'Failed to load course content.');
-      } finally {
-        setLoading(false);
+      } else {
+        throw new Error('Course content could not be loaded.');
       }
-    };
-    fetchCourseContent();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load course content.');
+    } finally {
+      setLoading(false);
+    }
   }, [courseId]);
 
-  const updateProgress = async (lessonId, status) => {
-    if (lessonStatuses.has(lessonId)) return;
+  useEffect(() => {
+    fetchCourseContent();
+  }, [fetchCourseContent]);
+
+  // =================================================================
+  //                 *** THE CORE FIX IS HERE ***
+  // This new handler correctly updates the backend and frontend state
+  // without causing a page reload.
+  // =================================================================
+  const handleProgressUpdate = async (lessonId, status) => {
+    // Check if the lesson ALREADY has this exact status to prevent redundant API calls
+    if (lessonStatuses.get(lessonId) === status) {
+        if (status === 'completed') toast.info("Lesson already marked as complete!");
+        return;
+    }
+
     try {
+      // 1. Tell the Backend: Persist the new status.
+      // We use the single, reliable '/status' route.
       await api.post(`/courses/lessons/${lessonId}/status`, { status });
       
-      const updatedStatuses = new Map(lessonStatuses);
-      updatedStatuses.set(lessonId, status);
-      setLessonStatuses(updatedStatuses);
-      
-      const profileRes = await api.get('/profile');
-      dispatch(updateProfile(profileRes.data.data));
+      // 2. Tell the Frontend: Update the local state to trigger a UI re-render.
+      // This is the key to preventing the full page reload.
+      setLessonStatuses(prevMap => {
+        const newMap = new Map(prevMap);
+        newMap.set(lessonId, status);
+        return newMap;
+      });
 
       if (status === 'completed') {
         toast.success("Lesson marked as complete!");
       }
+
     } catch (err) {
       console.error('Failed to update progress', err);
-      toast.error('Could not save progress.');
+      toast.error('Could not save your progress.');
     }
   };
 
   const handleQuizAttempt = (lessonId, isCorrect) => {
-    updateProgress(lessonId, isCorrect ? 'correct' : 'incorrect');
+    handleProgressUpdate(lessonId, isCorrect ? 'correct' : 'incorrect');
   };
 
   const handleVideoComplete = (lessonId) => {
-    updateProgress(lessonId, 'completed');
+    handleProgressUpdate(lessonId, 'completed');
   };
   
+  // The rest of your component remains the same...
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -101,16 +120,6 @@ const LearnCoursePage = () => {
     );
   }
 
-  if (!course) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <p>Could not find course content.</p>
-      </div>
-    );
-  }
-
-  const isCurrentLessonCompleted = activeLesson ? lessonStatuses.has(activeLesson._id) : false;
-
   return (
     <div className="flex flex-col md:flex-row min-h-[calc(100vh-68px)]">
       <CourseSidebar 
@@ -121,9 +130,6 @@ const LearnCoursePage = () => {
       />
       <main className="flex-1 p-4 md:p-8 bg-gray-100 overflow-y-auto">
         <div className="max-w-4xl mx-auto">
-          
-          {/* --- START: THE FIX --- */}
-          {/* The "Back to My Courses" button is restored here. */}
           <button 
             onClick={() => navigate('/my-courses')} 
             className="flex items-center gap-2 mb-6 text-sm text-blue-600 hover:text-blue-700 font-medium"
@@ -133,13 +139,12 @@ const LearnCoursePage = () => {
             </svg>
             Back to My Courses
           </button>
-          {/* --- END: THE FIX --- */}
           
           <ContentPlayer 
             lesson={activeLesson} 
             onQuizAttempt={handleQuizAttempt}
             onVideoComplete={handleVideoComplete}
-            isAlreadyCompleted={isCurrentLessonCompleted}
+            isAlreadyCompleted={lessonStatuses.has(activeLesson?._id)}
           />
         </div>
       </main>
