@@ -1,3 +1,5 @@
+// Filename: routes/order.routes.js (UPDATED)
+
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
@@ -5,15 +7,14 @@ const { protect } = require('../middleware/auth');
 // This is the controller that handles the logic
 const {
   createCheckoutSession,
-  handleStripeWebhook,
   getMyCourses,
-} = require('../controllers/order.controller.js'); // NOTE: The filename is order.controller.js
+  // handleStripeWebhook is no longer needed here as it's called directly from app.js
+} = require('../controllers/order.controller.js');
 
 // --- ROUTES ---
 
-// The webhook route must not be protected by user auth and must handle the raw request body.
-// It should be defined before any global express.json() middleware if possible.
-router.post('/stripe-webhook', express.raw({ type: 'application/json' }), handleStripeWebhook);
+// The Stripe webhook route has been MOVED to app.js to ensure it's loaded
+// before the global express.json() parser. This is the correct pattern.
 
 // All routes below this line require a user to be logged in.
 router.use(protect);
@@ -21,22 +22,21 @@ router.use(protect);
 // Route for creating the Stripe payment session
 router.post('/create-checkout-session', createCheckoutSession);
 
+// Route for fetching the user's purchased courses
+router.get('/my-courses', getMyCourses);
+
+// Your test route, which also requires protection and JSON parsing now
 router.post('/webhook-test', (req, res) => {
   console.log('🔥 WEBHOOK TEST ROUTE HIT!');
   console.log('🔥 Method:', req.method);
-  console.log('🔥 Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('🔥 Body type:', typeof req.body);
-  console.log('🔥 Body content:', req.body);
+  console.log('🔥 Body (parsed):', req.body); // Should now be a parsed JSON object
   console.log('🔥 Timestamp:', new Date().toISOString());
   
-  res.status(200).json({ 
+  res.status(200).json({
     message: 'Webhook test successful!',
     timestamp: new Date().toISOString(),
-    received: true 
+    received: true
   });
 });
-
-// Route for fetching the user's purchased courses
-router.get('/my-courses', getMyCourses);
 
 module.exports = router;
