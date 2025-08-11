@@ -16,6 +16,21 @@ const api = axios.create({
 
 
 
+/**
+ * CourseDetailPage component displays detailed information about a specific course,
+ * including its image, title, rating, description, instructor, topics, modules, and lessons.
+ * 
+ * It allows users to:
+ * - Add the course to their cart (with authentication and loading guards)
+ * - Buy the course immediately (navigates to checkout with the course)
+ * - View course content in an expandable/collapsible format
+ * - See pricing, discounts, and course features
+ * 
+ * State management is handled via Redux for course, cart, and authentication data.
+ * 
+ * @component
+ * @returns {JSX.Element} The rendered course detail page.
+ */
 const CourseDetailPage = () => {
   const { id } = useParams();
   const dispatch = useDispatch();
@@ -198,7 +213,7 @@ const CourseDetailPage = () => {
                 <h3 className="text-xl font-semibold mb-4">Course Content</h3>
                 <div className="space-y-4">
                   {course.modules?.map((module, moduleIndex) => (
-                    <div key={module._id} className="border rounded-lg overflow-hidden"> {/* Use module._id for a stable key */}
+                    <div key={module._id || moduleIndex} className="border rounded-lg overflow-hidden">
                       <button
                         onClick={() => setActiveSection(activeSection === moduleIndex ? -1 : moduleIndex)}
                         className="w-full p-4 text-left font-medium bg-gray-50 hover:bg-gray-100 focus:outline-none flex justify-between items-center"
@@ -212,22 +227,16 @@ const CourseDetailPage = () => {
                         </svg>
                       </button>
                       {activeSection === moduleIndex && (
-                        <div className="p-4 bg-white border-t"> {/* Add a border-t for separation */}
+                        <div className="p-4 bg-white border-t">
                           <ul className="space-y-2">
-                            
-                            {/* --- START: THE FIX --- */}
-                            {/* Change 'module.contents' to 'module.lessons' */}
                             {module.lessons?.map((lesson) => (
-                              <li key={lesson._id} className="flex items-center text-gray-600 text-sm"> {/* Use lesson._id for a stable key */}
-                                {/* Add an icon based on lesson type for better UX */}
+                              <li key={lesson._id} className="flex items-center text-gray-600 text-sm">
                                 <span className="mr-3 text-gray-400">
                                   {lesson.type === 'video' ? '▶️' : '❓'}
                                 </span>
                                 {lesson.title}
                               </li>
                             ))}
-                            {/* --- END: THE FIX --- */}
-
                           </ul>
                         </div>
                       )}
