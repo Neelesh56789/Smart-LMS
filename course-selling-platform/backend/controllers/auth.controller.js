@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const transporter = require('../config/emailConfig');
+const asyncHandler = require('express-async-handler');
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
