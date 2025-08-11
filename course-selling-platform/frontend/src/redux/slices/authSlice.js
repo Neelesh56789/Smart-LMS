@@ -24,8 +24,6 @@ const initialState = {
 
 // --- ASYNCHRONOUS THUNKS ---
 
-// ** THIS IS THE MISSING THUNK THAT CAUSED THE ERROR **
-// It fetches the latest user data from the server.
 export const getMe = createAsyncThunk(
   'auth/getMe',
   async (_, { rejectWithValue }) => {
@@ -38,7 +36,6 @@ export const getMe = createAsyncThunk(
   }
 );
 
-// Correctly handles user registration
 export const register = createAsyncThunk('auth/register', async (userData, { rejectWithValue }) => {
   try {
     const response = await api.post('/auth/register', userData);
@@ -48,7 +45,6 @@ export const register = createAsyncThunk('auth/register', async (userData, { rej
   }
 });
 
-// Correctly handles user login
 export const login = createAsyncThunk('auth/login', async (userData, { rejectWithValue }) => {
   try {
     const response = await api.post('/auth/login', userData);
@@ -77,7 +73,6 @@ export const sendPasswordResetEmail = createAsyncThunk('auth/sendPasswordResetEm
 
 export const resetPassword = createAsyncThunk('auth/resetPassword', async ({ token, password }, { rejectWithValue }) => {
     try {
-      // Corrected the template literal syntax
       const res = await api.post(`/auth/reset-password/${token}`, { password });
       return res.data;
     } catch (err) {
@@ -114,7 +109,7 @@ export const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // ** THE KEY FIX FOR THE "AUTHENTICATION REQUIRED" ERROR **
+      // ** THE KEY FIX FOR THE "Bearer undefined" ERROR **
       .addCase(register.fulfilled, (state, action) => {
         // Combine the user data from the payload with the token
         const userWithToken = { ...action.payload.user, token: action.payload.token };
@@ -130,9 +125,9 @@ export const authSlice = createSlice({
         localStorage.setItem('user', JSON.stringify(userWithToken));
       })
 
-      // Reducer for the newly added getMe thunk
+      // Reducer for the getMe thunk
       .addCase(getMe.fulfilled, (state, action) => {
-        const freshUser = { ...state.user, ...action.payload }; // Merge to preserve the token
+        const freshUser = { ...state.user, ...action.payload }; // Merge to preserve the existing token
         state.user = freshUser;
         localStorage.setItem('user', JSON.stringify(freshUser));
       })
@@ -155,14 +150,13 @@ export const authSlice = createSlice({
         localStorage.removeItem('user');
       })
       
-      // Generic matchers for pending/fulfilled/rejected states
+      // Generic matchers
       .addMatcher((action) => action.type.endsWith('/pending'), (state) => { state.loading = true; state.error = null; })
       .addMatcher((action) => action.type.endsWith('/fulfilled'), (state) => { state.loading = false; })
       .addMatcher((action) => action.type.endsWith('/rejected'), (state, action) => {
         state.loading = false;
         state.error = action.payload;
-        // If getting user data fails, it implies the token is bad, so log them out completely.
-        if (action.type === 'auth/getMe/rejected') {
+        if (action.type.includes('getMe/rejected')) {
           state.user = null;
           state.isAuthenticated = false;
           localStorage.removeItem('user');
