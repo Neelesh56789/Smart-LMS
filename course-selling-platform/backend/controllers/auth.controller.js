@@ -33,41 +33,29 @@ exports.register = async (req, res) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
-exports.login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    // Validate email & password
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide an email and password'
-      });
-    }
-    // Check for user
-    const user = await User.findOne({ email }).select('+password');
-    console.log(user);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-    // Check if password matches
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-    sendTokenResponse(user, 200, res);
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+exports.login = asyncHandler(async (req, res, next) => {
+  const { email, password } = req.body;
+
+  // 1. Validation
+  if (!email || !password) {
+    return res.status(400).json({ success: false, message: 'Please provide an email and password' });
   }
-};
+
+  // 2. Check for user
+  const user = await User.findOne({ email }).select('+password');
+  if (!user) {
+    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+  }
+
+  // 3. Check if password matches
+  const isMatch = await user.matchPassword(password);
+  if (!isMatch) {
+    return res.status(401).json({ success: false, message: 'Invalid credentials' });
+  }
+
+  // 4. If everything is okay, send the token response
+  sendTokenResponse(user, 200, res);
+});
 // @desc    Get current logged in user
 // @route   GET /api/auth/me
 // @access  Private
