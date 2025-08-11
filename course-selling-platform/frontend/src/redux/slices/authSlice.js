@@ -1,4 +1,4 @@
-// Filename: src/redux/slices/authSlice.js (FINAL AND COMPLETE VERSION)
+// Filename: src/redux/slices/authSlice.js
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../api';
@@ -22,8 +22,6 @@ const initialState = {
   error: null,
 };
 
-// --- ASYNCHRONOUS THUNKS ---
-
 export const getMe = createAsyncThunk(
   'auth/getMe',
   async (_, { rejectWithValue }) => {
@@ -39,7 +37,7 @@ export const getMe = createAsyncThunk(
 export const register = createAsyncThunk('auth/register', async (userData, { rejectWithValue }) => {
   try {
     const response = await api.post('/auth/register', userData);
-    return response.data; // IMPORTANT: Return the whole payload { user, token }
+    return response.data;
   } catch (error) {
     return rejectWithValue(error.response?.data?.message || error.message);
   }
@@ -48,7 +46,7 @@ export const register = createAsyncThunk('auth/register', async (userData, { rej
 export const login = createAsyncThunk('auth/login', async (userData, { rejectWithValue }) => {
   try {
     const response = await api.post('/auth/login', userData);
-    return response.data; // IMPORTANT: Return the whole payload { user, token }
+    return response.data;
   } catch (error) {
     return rejectWithValue(error.response?.data?.message || error.message);
   }
@@ -98,6 +96,17 @@ export const updateProfilePhoto = createAsyncThunk('auth/updateProfilePhoto', as
   }
 });
 
+export const updateUserProgress = createAsyncThunk(
+  'auth/updateUserProgress',
+  async ({ lessonId, status }, { rejectWithValue }) => {
+    try {
+      const res = await api.post(`/courses/lessons/${lessonId}/status`, { status });
+      return res.data.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Could not update progress.');
+    }
+  }
+);
 
 export const authSlice = createSlice({
   name: 'auth',
@@ -109,30 +118,23 @@ export const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // ** THE KEY FIX FOR THE "Bearer undefined" ERROR **
       .addCase(register.fulfilled, (state, action) => {
-        // Combine the user data from the payload with the token
-        const userWithToken = { ...action.payload.user, token: action.payload.token };
+        const userWithToken = action.payload.user;
         state.isAuthenticated = true;
         state.user = userWithToken;
         localStorage.setItem('user', JSON.stringify(userWithToken));
       })
       .addCase(login.fulfilled, (state, action) => {
-        // Combine the user data from the payload with the token
-        const userWithToken = { ...action.payload.user, token: action.payload.token };
+        const userWithToken = action.payload.user;
         state.isAuthenticated = true;
         state.user = userWithToken;
         localStorage.setItem('user', JSON.stringify(userWithToken));
       })
-
-      // Reducer for the getMe thunk
       .addCase(getMe.fulfilled, (state, action) => {
-        const freshUser = { ...state.user, ...action.payload }; // Merge to preserve the existing token
+        const freshUser = { ...state.user, ...action.payload };
         state.user = freshUser;
         localStorage.setItem('user', JSON.stringify(freshUser));
       })
-
-      // Correctly update profile while preserving the token
       .addCase(updateProfile.fulfilled, (state, action) => {
         const updatedUser = { ...state.user, ...action.payload };
         state.user = updatedUser;
@@ -143,23 +145,31 @@ export const authSlice = createSlice({
         state.user = updatedUser;
         localStorage.setItem('user', JSON.stringify(updatedUser));
       })
-
+      .addCase(updateUserProgress.fulfilled, (state, action) => {
+        if (state.user) {
+          state.user.lessonStatuses = action.payload;
+          localStorage.setItem('user', JSON.stringify(state.user));
+        }
+      })
       .addCase(logout.fulfilled, (state) => {
         state.user = null;
         state.isAuthenticated = false;
         localStorage.removeItem('user');
       })
-      
-      // Generic matchers
-      .addMatcher((action) => action.type.endsWith('/pending'), (state) => { state.loading = true; state.error = null; })
-      .addMatcher((action) => action.type.endsWith('/fulfilled'), (state) => { state.loading = false; })
+      .addMatcher((action) => action.type.endsWith('/pending'), (state) => { 
+        state.loading = true; 
+        state.error = null; 
+      })
+      .addMatcher((action) => action.type.endsWith('/fulfilled'), (state) => { 
+        state.loading = false; 
+      })
       .addMatcher((action) => action.type.endsWith('/rejected'), (state, action) => {
         state.loading = false;
         state.error = action.payload;
         if (action.type.includes('getMe/rejected')) {
-          state.user = null;
-          state.isAuthenticated = false;
-          localStorage.removeItem('user');
+           state.user = null;
+           state.isAuthenticated = false;
+           localStorage.removeItem('user');
         }
       });
   },
