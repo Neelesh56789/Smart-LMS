@@ -507,104 +507,86 @@ exports.updateLessonStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server Error' });
   }
 };
-// Filename: controllers/course.controller.js (REPLACE THIS FUNCTION)
+
 
 exports.generateCertificate = async (req, res) => {
   try {
     const userId = req.user.id;
     const { courseId } = req.params;
 
-    // ... (Your existing verification logic for user, course, and completion is perfect and remains unchanged)
+    // --- Verification logic (remains unchanged) ---
     const user = await User.findById(userId).select('name purchasedCourses lessonStatuses');
     if (!user || !user.purchasedCourses.includes(courseId)) {
-        return res.status(403).json({ success: false, message: 'You do not have access to this course.' });
+      return res.status(403).json({ success: false, message: 'You do not have access to this course.' });
     }
     const course = await Course.findById(courseId);
     if (!course) {
-        return res.status(404).json({ success: false, message: 'Course not found.' });
+      return res.status(404).json({ success: false, message: 'Course not found.' });
     }
     const modules = await Module.find({ course: courseId });
     const lessonIdsInCourse = (await Lesson.find({ module: { $in: modules.map(m => m._id) } })).map(l => l._id.toString());
     const totalLessons = lessonIdsInCourse.length;
     if (totalLessons === 0) {
-        return res.status(400).json({ success: false, message: 'This course has no lessons.' });
+      return res.status(400).json({ success: false, message: 'This course has no lessons.' });
     }
     const completedLessons = user.lessonStatuses
       .filter(ls => (ls.status === 'correct' || ls.status === 'completed') && lessonIdsInCourse.includes(ls.lesson.toString()))
       .map(ls => ls.lesson.toString());
     const progress = Math.round((new Set(completedLessons).size / totalLessons) * 100);
     if (progress < 100) {
-        return res.status(403).json({ success: false, message: 'You must complete 100% of the course to get a certificate.' });
+      return res.status(403).json({ success: false, message: 'You must complete 100% of the course to get a certificate.' });
     }
-    // ... (End of verification logic)
+    // --- End of verification logic ---
     
-    // --- START: THE FIX FOR THE TWO-PAGE ISSUE ---
-
     // 1. GENERATE THE PDF with controlled margins
     const doc = new PDFDocument({
       layout: 'landscape',
       size: 'A4',
-      margins: { // Define smaller margins for more space
-        top: 40,
-        bottom: 40,
-        left: 50,
-        right: 50,
+      margins: {
+        top: 40, bottom: 40, left: 50, right: 50,
       }
     });
 
-    // Set headers to stream the PDF to the client
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="certificate-${course.slug}.pdf"`);
     doc.pipe(res);
 
     // --- Start Designing the Certificate with ABSOLUTE POSITIONING ---
-
-    // Add a background color (optional)
     doc.rect(0, 0, doc.page.width, doc.page.height).fill('#F0F7FF');
 
-    // 2. Use specific Y coordinates instead of multiple moveDown() calls
     const centerOfPage = doc.page.width / 2;
     const textOptions = { align: 'center', width: doc.page.width - 100 };
 
-    // Certificate Title (y=60)
     doc.fontSize(50).fillColor('#0A2540').font('Helvetica-Bold').text('Certificate of Completion', 50, 60, textOptions);
-    
-    // "Presented to" text (y=160)
     doc.fontSize(20).fillColor('#334155').font('Helvetica').text('This certificate is proudly presented to', 50, 160, textOptions);
-
-    // User's Name (y=200)
     doc.fontSize(40).fillColor('#2563EB').font('Helvetica-BoldOblique').text(user.name, 50, 200, textOptions);
-
-    // "For completing" text (y=260)
     doc.fontSize(20).fillColor('#334155').font('Helvetica').text('for successfully completing the course', 50, 260, textOptions);
-    
-    // Course Name (y=290)
     doc.fontSize(28).fillColor('#1E293B').font('Helvetica-Bold').text(`"${course.title}"`, 50, 290, textOptions);
 
-    // Position the bottom elements relative to the page height
     const bottomY = doc.page.height - 120;
 
-    // Date
-    const completionDate = new Date().toLocaleDate-string('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    // --- START: THE FIX FOR THE 500 ERROR ---
+    // The typo was here. It should be 'toLocaleDateString' (camelCase).
+    const completionDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    // --- END: THE FIX ---
+
     doc.fontSize(16).fillColor('#475569').font('Helvetica').text(`Issued on: ${completionDate}`, 50, bottomY, textOptions);
 
-    // Signature Line
     doc.lineWidth(1).moveTo(centerOfPage - 100, bottomY + 50).lineTo(centerOfPage + 100, bottomY + 50).stroke('#334155');
-
-    // Signature/Brand Name
     doc.fontSize(16).fillColor('#334155').text('Smart LMS', centerOfPage - 50, bottomY + 35, {
         align: 'center',
         width: 100
     });
-    
-    // --- End Designing ---
 
-    // Finalize the PDF and end the stream
+    // Finalize the PDF
     doc.end();
-    // --- END: THE FIX ---
 
   } catch (error) {
-    console.error('Generate Certificate Error:', error);
-    res.status(500).json({ success: false, message: 'Server Error' });
+    // This catch block is what handles the 500 error. Let's log it.
+    console.error('❌ Generate Certificate Error:', error);
+    // Send a proper error response instead of letting the server hang or crash
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Server Error while generating certificate.' });
+    }
   }
 };
