@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { logout } from '../../redux/slices/authSlice';
-import { FaShoppingCart } from 'react-icons/fa'; // <-- IMPORT THE CART ICON
+import { FaShoppingCart } from 'react-icons/fa'; 
+import Avatar from '../common/Avatar';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
@@ -66,8 +67,8 @@ const Header = () => {
                 onClick={() => setDropdownOpen(!dropdownOpen)} 
                 className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-full"
               >
-                {user.profileImage && user.profileImage !== 'default-profile.jpg' ? (
-                  <img 
+                <Avatar user={user} size="w-10 h-10" textSize="text-lg" />
+                  {/* <img 
                     src={`${BACKEND_URL}/uploads/${user.profileImage}`}
                     alt="Profile"
                     className="w-10 h-10 rounded-full object-cover"
@@ -76,7 +77,7 @@ const Header = () => {
                   <span className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-bold text-lg">
                     {getInitials(user.name)}
                   </span>
-                )}
+                )} */}
               </button>
               
               {dropdownOpen && (

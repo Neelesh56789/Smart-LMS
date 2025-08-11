@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import { updateProfile, updateProfilePhoto, getMe } from '../redux/slices/authSlice'; // <-- Import getMe
-
+import Avatar from '../components/common/Avatar';
 // The base URL of your backend, for constructing image paths
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
@@ -102,12 +102,11 @@ const ProfilePage = () => {
               {/* Image Column */}
               <div className="flex flex-col items-center md:items-start">
                 <div className="relative">
-                  <img 
-                    src={displayImage} 
-                    alt="Profile" 
-                    className="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
-                    // Add an onError handler for broken images
-                    onError={(e) => { e.target.onerror = null; e.target.src='https://via.placeholder.com/150?text=Profile'; }}
+                  <Avatar 
+                    user={user} 
+                    src={displayImage} // Pass the dynamic image URL state
+                    size="w-32 h-32"   // Define the size
+                    textSize="text-5xl" // Make initials larger for the big avatar
                   />
                   <label className="absolute -bottom-1 -right-1 bg-blue-600 text-white p-2 rounded-full cursor-pointer hover:bg-blue-700 transition shadow-md">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
