@@ -52,6 +52,11 @@ app.post(
   handleStripeWebhook
 );
 
+app.get('/orders/stripe-webhook', (req, res) => {
+  console.log('✅ DIAGNOSTIC GET ROUTE HIT SUCCESSFULLY! Routing is correct.');
+  res.send('Success! The unprotected webhook route is reachable.');
+});
+
 // STEP 2: Now, enable the global JSON parser for all other routes.
 app.use(express.json());
 
