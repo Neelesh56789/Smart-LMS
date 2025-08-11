@@ -198,7 +198,7 @@ const CourseDetailPage = () => {
                 <h3 className="text-xl font-semibold mb-4">Course Content</h3>
                 <div className="space-y-4">
                   {course.modules?.map((module, moduleIndex) => (
-                    <div key={moduleIndex} className="border rounded-lg overflow-hidden">
+                    <div key={module._id} className="border rounded-lg overflow-hidden"> {/* Use module._id for a stable key */}
                       <button
                         onClick={() => setActiveSection(activeSection === moduleIndex ? -1 : moduleIndex)}
                         className="w-full p-4 text-left font-medium bg-gray-50 hover:bg-gray-100 focus:outline-none flex justify-between items-center"
@@ -212,14 +212,22 @@ const CourseDetailPage = () => {
                         </svg>
                       </button>
                       {activeSection === moduleIndex && (
-                        <div className="p-4 bg-white">
+                        <div className="p-4 bg-white border-t"> {/* Add a border-t for separation */}
                           <ul className="space-y-2">
-                            {module.contents?.map((content, contentIndex) => (
-                              <li key={contentIndex} className="flex items-center text-gray-600">
-                                <span className="mr-2">📝</span>
-                                {content.title}
+                            
+                            {/* --- START: THE FIX --- */}
+                            {/* Change 'module.contents' to 'module.lessons' */}
+                            {module.lessons?.map((lesson) => (
+                              <li key={lesson._id} className="flex items-center text-gray-600 text-sm"> {/* Use lesson._id for a stable key */}
+                                {/* Add an icon based on lesson type for better UX */}
+                                <span className="mr-3 text-gray-400">
+                                  {lesson.type === 'video' ? '▶️' : '❓'}
+                                </span>
+                                {lesson.title}
                               </li>
                             ))}
+                            {/* --- END: THE FIX --- */}
+
                           </ul>
                         </div>
                       )}

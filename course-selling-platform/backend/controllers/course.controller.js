@@ -191,7 +191,13 @@ exports.getCourse = async (req, res) => {
           path: 'instructor',
           select: 'name profileImage bio'
         })
-        .populate('modules');
+        .populate({
+        path: 'modules', // First, populate the modules
+        populate: {
+          path: 'lessons', // Then, within each module, populate the lessons
+          model: 'Lesson'  // Explicitly specify the Lesson model
+        }
+      });
     } else {
       // If not a valid ObjectId, try to find by slug or other field
       // This is just a placeholder, you might need to adjust based on your data
