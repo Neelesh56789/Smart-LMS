@@ -45,7 +45,7 @@ const Header = () => {
   return (
     <header className="bg-white shadow-md sticky top-0 z-50">
       <nav className="container mx-auto px-6 py-3 flex justify-between items-center">
-        <Link to="/" className="text-2xl font-bold text-gray-800">LearnInOneGo</Link>
+        <Link to="/" className="text-2xl font-bold text-gray-800">EduStream</Link>
         
         <div className="flex items-center space-x-6"> {/* Increased spacing for better look */}
           <Link to="/courses" className="text-gray-600 hover:text-blue-600">Courses</Link>

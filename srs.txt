@@ -1,457 +1,119 @@
-# Software Requirements Specification (SRS)
-## Online Learning Platform
+# Smart Learning Management System (Smart-LMS)
 
-### Document Information
-- **Project Name:** EduStream - Online Learning Platform
-- **Version:** 1.0
-- **Date:** July 11, 2025
-- **Technology Stack:** MERN (MongoDB, Express.js, React.js, Node.js)
+## Overview
+Smart-LMS is a modern e-learning platform built with the MERN stack (MongoDB, Express.js, React.js, Node.js). It provides a comprehensive solution for online course creation, management, and learning with features for both instructors and students.
 
----
+## Features
 
-## 1. Introduction
+### Authentication & User Management
+- User registration and login with JWT authentication
+- Password reset functionality with email verification
+- Profile management with photo upload
 
-### 1.1 Purpose
-This document specifies the requirements for an online learning platform that enables instructors to create and manage courses while providing students with an interactive learning experience including video streaming, quizzes, progress tracking, and certification.
 
-### 1.2 Scope
-The platform will support multiple user roles, course management, content delivery, assessment tools, and certification generation with a focus on scalability and user experience.
+### Course Management
+- Create and manage courses with rich content
+- Upload course thumbnails and promotional materials
+- Organize content into modules and lessons
+- Support for various content types:
+  - Video lessons
+  - MCQ
 
-### 1.3 Definitions and Acronyms
-- **LMS:** Learning Management System
-- **CRUD:** Create, Read, Update, Delete
-- **API:** Application Programming Interface
-- **JWT:** JSON Web Token
-- **CDN:** Content Delivery Network
+### Learning Experience
+- Interactive video player with progress tracking
+- Course progress visualization
+- MCQ attempt tracking
+- Course completion certificates
 
----
 
-## 2. System Overview
+### E-commerce Integration
+- Course pricing management
+- Shopping cart functionality
+- Secure payment processing with Stripe
 
-### 2.1 System Architecture
-- **Frontend:** React.js with responsive design
-- **Backend:** Node.js with Express.js
-- **Database:** MongoDB with Mongoose ODM
-- **Authentication:** JWT-based authentication
-- **File Storage:** Basic cloud storage for videos and documents
-- **Video Playback:** Standard video player capabilities
 
-### 2.2 User Roles
-1. **Admin:** Platform management and oversight
-2. **Employee:** Course creation and management
-3. **Student:** Course enrollment and learning
+## Tech Stack
 
----
-
-## 3. Functional Requirements
-
-### 3.1 User Management
-
-#### 3.1.1 User Registration
-- **FR-1.1:** Users can register as Student or Instructor
-- **FR-1.2:** Email verification required for account activation
-- **FR-1.3:** Basic profile completion
-
-#### 3.1.2 User Authentication
-- **FR-2.1:** Secure login with email/password
-- **FR-2.2:** Password reset functionality
-- **FR-2.3:** Basic session management
-
-#### 3.1.3 User Profile Management
-- **FR-3.1:** Profile picture upload and management
-- **FR-3.2:** Personal information updates
-- **FR-3.3:** Learning preferences and settings
-- **FR-3.4:** Account deactivation option
-
-### 3.2 Course Management
-
-#### 3.2.1 Course Creation (Instructor)
-- **FR-4.1:** Create course with title, description, category
-- **FR-4.2:** Upload course thumbnail and promotional images
-- **FR-4.3:** Set course pricing (free/paid)
-- **FR-4.4:** Define course prerequisites and learning outcomes
-- **FR-4.5:** Course draft and publish functionality
-
-#### 3.2.2 Course Content Management
-- **FR-5.1:** Create course modules and lessons
-- **FR-5.2:** Upload video content in standard format
-- **FR-5.3:** Add supplementary materials (PDFs, documents)
-- **FR-5.4:** Create and manage basic quizzes
-- **FR-5.5:** Basic content organization
-
-#### 3.2.3 Course Discovery (Student)
-- **FR-6.1:** Browse courses by category
-- **FR-6.2:** Basic search functionality
-- **FR-6.3:** Course preview and information
-- **FR-6.4:** Simple course ratings system
-
-### 3.3 Learning Experience
-
-#### 3.3.1 Course Enrollment
-- **FR-7.1:** One-click course enrollment
-- **FR-7.2:** Payment processing for paid courses
-- **FR-7.3:** Enrollment confirmation and course access
-- **FR-7.4:** Enrollment history and management
-
-#### 3.3.2 Video Streaming
-- **FR-8.1:** Basic video streaming with standard quality
-- **FR-8.2:** Video playback controls (play, pause, seek)
-- **FR-8.3:** Playback speed adjustment
-- **FR-8.4:** Simple video progress tracking
-
-#### 3.3.3 Interactive Learning
-- **FR-9.1:** Basic quizzes with multiple choice questions
-- **FR-9.2:** Simple feedback for quiz responses
-- **FR-9.3:** Discussion forums for each course
-- **FR-9.4:** Q&A section with instructor responses
-
-### 3.4 Assessment and Progress Tracking
-
-#### 3.4.1 Quiz System
-- **FR-10.1:** Multiple choice and true/false questions
-- **FR-10.2:** Basic quiz time limits
-- **FR-10.3:** Simple grading system
-- **FR-10.4:** Basic quiz statistics for instructors
-
-#### 3.4.2 Progress Tracking
-- **FR-11.1:** Lesson completion tracking
-- **FR-11.2:** Basic course progress visualization
-
-### 3.5 Certification System
-
-#### 3.5.1 Certificate Generation
-- **FR-12.1:** Certificate generation upon course completion
-- **FR-12.2:** Basic certificate templates
-- **FR-12.4:** Certificate download (PDF format)
-
-#### 3.5.2 Certificate Management
-- **FR-13.1:** Certificate history for students
-
-### 3.6 Communication Features
-
-#### 3.6.1 Messaging System
-- **FR-14.1:** Basic messaging between students and instructors
-- **FR-14.2:** Announcement system for course updates
-- **FR-14.3:** Email notifications for important events
-
-#### 3.6.2 Community Features
-- **FR-15.1:** Course-specific discussion boards
-- **FR-15.2:** Q&A section with instructor responses
-
-### 3.7 Analytics and Reporting
-
-#### 3.7.1 Student Analytics
-- **FR-16.1:** Basic learning dashboard
-- **FR-16.2:** Simple progress reports
-
-#### 3.7.2 Instructor Analytics
-- **FR-17.1:** Basic course performance metrics
-- **FR-17.2:** Enrollment statistics
-
-### 3.8 Payment and Subscription
-
-#### 3.8.1 Payment Processing
-- **FR-18.1:** Basic payment method support
-- **FR-18.2:** Standard payment gateway integration
-- **FR-18.3:** Basic invoice generation
-
-#### 3.8.2 Subscription Management
-- **FR-19.1:** Basic subscription plan options
-- **FR-19.2:** Simple subscription management
-
----
-
-## 4. Non-Functional Requirements
-
-### 4.1 Performance Requirements
-- **NFR-1.1:** Page load time should not exceed 5 seconds
-- **NFR-1.2:** Video streaming should start within 5-10 seconds
-- **NFR-1.3:** System should support 1,000 concurrent users initially, with a scalability plan for future growth
-- **NFR-1.4:** 95% uptime availability for initial release, aiming for 99% in subsequent releases
-
-### 4.2 Security Requirements
-- **NFR-2.1:** All data transmission must be encrypted (HTTPS)
-- **NFR-2.2:** Password encryption using bcrypt
-- **NFR-2.3:** JWT token expiration and refresh mechanism
-- **NFR-2.4:** Input validation and sanitization
-- **NFR-2.5:** Rate limiting for API endpoints
-
-### 4.3 Usability Requirements
-- **NFR-3.1:** Responsive design for desktop and mobile devices
-- **NFR-3.2:** Intuitive navigation and user interface
-- **NFR-3.3:** Basic accessibility compliance
-
-### 4.4 Scalability Requirements
-- **NFR-4.1:** Horizontal scaling capability for future growth
-- **NFR-4.2:** Basic database optimization
-- **NFR-4.3:** Basic CDN integration for static content
-
----
-
-## 5. System Models
-
-### 5.1 Database Schema Overview
-
-#### 5.1.1 User Collection
-```
-{
-  _id: ObjectId,
-  email: String,
-  password: String,
-  role: Enum['student', 'instructor', 'admin'],
-  profile: {
-    firstName: String,
-    lastName: String,
-    avatar: String,
-    bio: String,
-    dateOfBirth: Date,
-    location: String
-  },
-  preferences: {
-    language: String,
-    notifications: Object,
-    privacy: Object
-  },
-  isEmailVerified: Boolean,
-  isActive: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
+### Frontend
+```javascript
+- React.js
+- Redux Toolkit (State Management)
+- Tailwind CSS (Styling)
+- Axios (API calls)
+- React Router (Navigation)
+- Stripe Elements (Payment UI)
 ```
 
-#### 5.1.2 Course Collection
-```
-{
-  _id: ObjectId,
-  title: String,
-  description: String,
-  instructor: ObjectId,
-  category: String,
-  subcategory: String,
-  level: Enum['beginner', 'intermediate', 'advanced'],
-  price: Number,
-  currency: String,
-  thumbnail: String,
-  trailer: String,
-  prerequisites: [String],
-  learningOutcomes: [String],
-  modules: [ObjectId],
-  enrollments: [ObjectId],
-  ratings: {
-    average: Number,
-    count: Number,
-    reviews: [ObjectId]
-  },
-  status: Enum['draft', 'published', 'archived'],
-  createdAt: Date,
-  updatedAt: Date
-}
+### Backend
+```javascript
+- Node.js
+- Express.js
+- MongoDB with Mongoose
+- JWT (Authentication)
+- Multer (File Upload)
+- Stripe API (Payments)
 ```
 
-#### 5.1.3 Module Collection
-```
-{
-  _id: ObjectId,
-  courseId: ObjectId,
-  title: String,
-  description: String,
-  order: Number,
-  lessons: [ObjectId],
-  quiz: ObjectId,
-  isPreview: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+## Project Structure
 
-#### 5.1.4 Lesson Collection
 ```
-{
-  _id: ObjectId,
-  moduleId: ObjectId,
-  title: String,
-  description: String,
-  type: Enum['video', 'text', 'quiz', 'assignment'],
-  content: {
-    videoUrl: String,
-    duration: Number,
-    transcript: String,
-    materials: [String],
-    textContent: String
-  },
-  order: Number,
-  isPreview: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
+smart-lms/
+├── frontend/                # React frontend application
+│   ├── src/
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/         # Page components
+│   │   ├── redux/         # Redux store and slices
+│   │   ├── api/           # API configuration
+│   │   └── utils/         # Utility functions
+│   └── public/            # Static files
+│
+├── backend/                # Node.js backend application
+│   ├── config/           # Configuration files
+│   ├── controllers/      # Route controllers
+│   ├── middleware/       # Custom middleware
+│   ├── models/          # Mongoose models
+│   ├── routes/          # API routes
+│   └── utils/           # Utility functions
 ```
 
-### 5.2 API Endpoints Overview
+## Running the Application
 
-#### 5.2.1 Authentication APIs
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `POST /api/auth/logout` - User logout
-- `POST /api/auth/refresh` - Token refresh
-- `POST /api/auth/forgot-password` - Password reset request
-- `POST /api/auth/reset-password` - Password reset confirmation
+1. Start the backend server
+```bash
+cd backend
+npm run dev
+```
 
-#### 5.2.2 Course Management APIs
-- `GET /api/courses` - Get all courses with filters
-- `POST /api/courses` - Create new course (instructor)
-- `GET /api/courses/:id` - Get course details
-- `PUT /api/courses/:id` - Update course (instructor)
-- `DELETE /api/courses/:id` - Delete course (instructor)
-- `POST /api/courses/:id/enroll` - Enroll in course (student)
+2. Start the frontend application
+```bash
+cd frontend
+npm start
+```
 
-#### 5.2.3 Learning APIs
-- `GET /api/courses/:id/modules` - Get course modules
-- `GET /api/modules/:id/lessons` - Get module lessons
-- `POST /api/lessons/:id/progress` - Update lesson progress
-- `GET /api/courses/:id/progress` - Get course progress
-- `POST /api/quizzes/:id/submit` - Submit quiz answers
+## API Documentation
 
----
+### Authentication Routes
+```javascript
+POST /api/auth/register   // User registration
+POST /api/auth/login      // User login
+POST /api/auth/logout     // User logout
+GET  /api/auth/me         // Get current user
+POST /api/auth/forgot-password    // Request password reset
+POST /api/auth/reset-password/:token  // Reset password
+```
 
-## 6. User Interface Requirements
+### Course Routes
+```javascript
+GET    /api/courses              // Get all courses
+GET    /api/courses/:id          // Get course details
+POST   /api/instructor/courses   // Create course
+PUT    /api/instructor/courses/:id   // Update course
+DELETE /api/instructor/courses/:id   // Delete course
+```
 
-### 6.1 Design Principles
-- **Clean and Modern:** Minimalist design with focus on content
-- **Responsive:** Mobile-first approach with adaptive layouts
-- **Accessible:** WCAG 2.1 compliance for all users
-- **Intuitive:** Clear navigation and user-friendly interfaces
-
-### 6.2 Key UI Components
-- **Navigation Bar:** Logo, search, user menu, notifications
-- **Course Cards:** Thumbnail, title, instructor, rating, price
-- **Video Player:** Custom controls, quality selector, notes panel
-- **Progress Indicators:** Visual progress bars and completion status
-- **Dashboard:** Personalized learning dashboard with widgets
-
-### 6.3 Color Scheme and Branding
-- **Primary Colors:** Professional blue (#007bff) and white
-- **Secondary Colors:** Gray tones for text and backgrounds
-- **Accent Colors:** Green for success, red for errors, orange for warnings
-- **Typography:** Clean, readable fonts with proper hierarchy
-
----
-
-## 7. Technical Specifications
-
-### 7.1 Frontend Technology Stack
-- **React.js:** Latest stable version with hooks
-- **State Management:** Redux Toolkit or Zustand
-- **Routing:** React Router DOM
-- **UI Framework:** Material-UI or Tailwind CSS
-- **Video Player:** Video.js or React Player
-- **Charts:** Chart.js or D3.js for analytics
-
-### 7.2 Backend Technology Stack
-- **Node.js:** Latest LTS version
-- **Express.js:** Web framework for APIs
-- **MongoDB:** NoSQL database with Mongoose ODM
-- **Authentication:** JWT with bcrypt for password hashing
-- **File Upload:** Multer with cloud storage integration
-- **Email Service:** Nodemailer with SMTP/SendGrid
-
-### 7.3 Third-Party Integrations
-- **Payment:** Basic Stripe or PayPal integration
-- **Video Storage:** Simple cloud storage solution
-- **Email:** Basic email service for notifications
-- **Analytics:** Basic site analytics
-
----
-
-## 8. Security Considerations
-
-### 8.1 Data Protection
-- **Encryption:** All sensitive data encrypted at rest and in transit
-- **Access Control:** Role-based access control (RBAC)
-- **Data Validation:** Input validation and sanitization
-- **Audit Logging:** Comprehensive logging for security events
-
-### 8.2 Application Security
-- **HTTPS:** SSL/TLS encryption for all communications
-- **CORS:** Proper Cross-Origin Resource Sharing configuration
-- **Rate Limiting:** API rate limiting to prevent abuse
-- **Security Headers:** Implementation of security headers
-
----
-
-## 9. Testing Requirements
-
-### 9.1 Testing Strategy
-- **Unit Testing:** Jest for individual component/function testing
-- **Integration Testing:** API endpoint testing with Supertest
-- **End-to-End Testing:** Cypress or Playwright for user workflows
-- **Performance Testing:** Load testing with appropriate tools
-
-### 9.2 Test Coverage
-- **Minimum Coverage:** 80% code coverage for critical components
-- **Automated Testing:** CI/CD pipeline integration
-- **Manual Testing:** User acceptance testing for key workflows
-- **Security Testing:** Vulnerability scanning and penetration testing
-
----
-
-## 10. Deployment and Maintenance
-
-### 10.1 Deployment Strategy
-- **Environment Setup:** Development and production environments
-- **Deployment Process:** Basic CI/CD setup
-- **Cloud Hosting:** Basic cloud hosting solution
-
-### 10.2 Monitoring and Maintenance
-- **Application Monitoring:** Basic error tracking
-- **Database Management:** Regular database backups
-- **Updates:** Regular security updates
-
----
-
-## 11. Project Timeline and Milestones
-
-### Phase 1: Foundation (Weeks 1-6)
-- User authentication and authorization
-- Basic user profile management
-- Database setup and basic models
-- Frontend project structure and routing
-
-### Phase 2: Core Features (Weeks 7-12)
-- Course creation and management
-- Basic video upload and playback
-- Basic enrollment functionality
-- Simple student dashboard implementation
-
-### Phase 3: Learning Experience (Weeks 13-20)
-- Quiz system implementation
-- Basic progress tracking functionality
-- Discussion forums and Q&A
-- Simple certificate generation
-
-### Phase 4: Enhancement and Deployment (Weeks 21-30)
-- Basic payment integration
-- Simple analytics dashboard
-- Testing and bug fixes
-- Security review
-- Production deployment
-
----
-
-## 12. Success Criteria
-
-### 12.1 Technical Success Metrics
-- **Performance:** Page load times under 5 seconds
-- **Scalability:** Support for 1,000 concurrent users
-- **Reliability:** 95% uptime achievement
-- **Security:** No high or critical security vulnerabilities
-
-### 12.2 User Experience Metrics
-- **Engagement:** Average session duration > 15 minutes
-- **Retention:** 50% monthly active user retention
-- **Satisfaction:** User satisfaction score > 4.0/5
-- **Completion:** Course completion rate > 40%
-
-
-## 14. Conclusion
-
-This SRS document provides a realistic blueprint for developing a functional online learning platform using the MERN stack. The platform will deliver essential educational features with a pragmatic approach to implementation. The focus is on building a stable, working platform with core functionality first, allowing for future expansion based on user feedback and resource availability. Regular reviews of project progress will help ensure alignment with these goals throughout the development lifecycle.
+### User Routes
+```javascript
+PUT    /api/profile             // Update profile
+PUT    /api/profile/photo       // Update profile photo
+GET    /api/profile            // Get profile
+```
