@@ -13,7 +13,7 @@ const Footer = () => {
           {/* Logo and Description - Spanning a bit more space for balance */}
           <div className="col-span-1 md:col-span-1">
             <Link to="/" className="flex items-center mb-4">
-              <span className="text-2xl font-bold text-blue-400">EduStream</span>
+              <span className="text-2xl font-bold text-blue-400">SmartLMS</span>
             </Link>
             <p className="text-gray-300 mb-4">
               Empower your learning journey with our curated courses from top educators.
